@@ -129,6 +129,14 @@
   text-align: left;
 }
 
+.dashboard-home__template-button {
+  background: var(--background-primary);
+  color: var(--text-accent);
+  font-size: 12px;
+  margin-bottom: 8px;
+  min-height: 28px;
+}
+
 .dashboard-home__section-preview {
   border-top: 1px solid var(--dashboard-border);
   padding: 10px 0;
@@ -140,8 +148,10 @@
 }
 
 .dashboard-home__section-preview h3 {
+  border-left: 3px solid var(--color-orange);
   font-size: 13px;
   margin: 0 0 4px;
+  padding-left: 8px;
 }
 
 .dashboard-home__section-preview p {

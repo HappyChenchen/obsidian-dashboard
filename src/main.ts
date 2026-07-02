@@ -11,6 +11,12 @@ import {
 } from "obsidian";
 
 const VIEW_TYPE_DASHBOARD = "dashboard-home-view";
+const DAILY_TEMPLATE_SECTIONS = [
+  "今日todo",
+  "今日关联笔记",
+  "想法/思考",
+  "读书笔记",
+];
 
 interface DashboardSettings {
   dailyFolder: string;
@@ -70,7 +76,7 @@ const DEFAULT_SETTINGS: DashboardSettings = {
   projectFolder: "Projects",
   articleFolder: "Articles",
   bookFolder: "Books",
-  defaultTaskSection: "Tasks",
+  defaultTaskSection: "今日todo",
   pomodoroMinutes: 25,
   openOnStartup: false,
 };
@@ -259,10 +265,7 @@ export default class DashboardPlugin extends Plugin {
       "",
       `# ${date}`,
       "",
-      "## Daily",
-      "",
-      `## ${this.settings.defaultTaskSection}`,
-      "",
+      ...DAILY_TEMPLATE_SECTIONS.flatMap((heading) => [`## ${heading}`, ""]),
     ].join("\n");
 
     return this.app.vault.create(path, content);
@@ -295,6 +298,28 @@ export default class DashboardPlugin extends Plugin {
       `- ${now} focused for ${minutes} minutes`,
     );
     await this.app.vault.modify(file, nextContent);
+  }
+
+  async completeDailyTemplate(file: TFile) {
+    const content = await this.app.vault.cachedRead(file);
+    const headings = extractDailySections(content).map((section) => section.heading);
+    const missingHeadings = DAILY_TEMPLATE_SECTIONS.filter(
+      (heading) => !headings.includes(heading),
+    );
+
+    if (missingHeadings.length === 0) {
+      new Notice("Daily template is already complete.");
+      return;
+    }
+
+    const suffix = content.endsWith("\n") ? "" : "\n";
+    const nextContent = [
+      `${content}${suffix}`,
+      ...missingHeadings.flatMap((heading) => [`## ${heading}`, ""]),
+    ].join("\n");
+
+    await this.app.vault.modify(file, nextContent);
+    new Notice("Daily template completed.");
   }
 
   async toggleTask(task: DashboardTask) {
@@ -381,7 +406,7 @@ class DashboardView extends ItemView {
       cls: "dashboard-home__eyebrow",
       text: moment().format("dddd, MMMM D"),
     });
-    titleBlock.createEl("h1", { text: "Dashboard" });
+    titleBlock.createEl("h1", { text: "my life" });
 
     const actions = header.createDiv({ cls: "dashboard-home__actions" });
     const openDaily = actions.createEl("button", { text: "Open daily" });
@@ -399,10 +424,10 @@ class DashboardView extends ItemView {
     const input = panel.createEl("input", {
       attr: {
         type: "text",
-        placeholder: "Capture a task, e.g. review project plan 📅 2026-07-03",
+        placeholder: "记录今日 todo，例如：整理项目计划 2026-07-03",
       },
     });
-    const button = panel.createEl("button", { text: "Add task" });
+    const button = panel.createEl("button", { text: "添加" });
     const submit = async () => {
       await this.plugin.appendTaskToToday(input.value);
       input.value = "";
@@ -489,23 +514,37 @@ class DashboardView extends ItemView {
     });
     path.addEventListener("click", () => this.plugin.openFile(data.todayFile as TFile));
 
-    if (data.dailySections.length === 0) {
-      card.createEl("p", {
-        cls: "dashboard-home__muted",
-        text: "Today's note has no second-level sections yet.",
+    const sectionsByHeading = new Map(
+      data.dailySections.map((section) => [section.heading, section]),
+    );
+    const missingHeadings = DAILY_TEMPLATE_SECTIONS.filter(
+      (heading) => !sectionsByHeading.has(heading),
+    );
+
+    if (missingHeadings.length > 0) {
+      const completeButton = card.createEl("button", {
+        cls: "dashboard-home__template-button",
+        text: "补全今日模板",
       });
-      return;
+      completeButton.addEventListener("click", async () => {
+        if (!data.todayFile) {
+          return;
+        }
+        await this.plugin.completeDailyTemplate(data.todayFile);
+        await this.render();
+      });
     }
 
-    for (const section of data.dailySections.slice(0, 5)) {
+    for (const heading of DAILY_TEMPLATE_SECTIONS) {
+      const section = sectionsByHeading.get(heading);
       const item = card.createDiv({ cls: "dashboard-home__section-preview" });
-      item.createEl("h3", { text: section.heading });
-      item.createEl("p", { text: section.preview || "No content yet." });
+      item.createEl("h3", { text: heading });
+      item.createEl("p", { text: section?.preview || "暂无内容" });
     }
   }
 
   private renderTasks(root: HTMLElement, data: DashboardData) {
-    const card = createCard(root, "Tasks");
+    const card = createCard(root, "Todo");
 
     if (data.tasks.length === 0) {
       card.createEl("p", {
@@ -702,7 +741,7 @@ class DashboardSettingTab extends PluginSettingTab {
       .setDesc("Quick-captured tasks are appended under this heading in the daily note.")
       .addText((text) =>
         text
-          .setPlaceholder("Tasks")
+          .setPlaceholder("今日todo")
           .setValue(this.plugin.settings.defaultTaskSection)
           .onChange(async (value) => {
             this.plugin.settings.defaultTaskSection =

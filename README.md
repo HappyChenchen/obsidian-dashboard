@@ -29,10 +29,15 @@ date: 2026-07-02
 
 # 2026-07-02
 
-## Daily
+## 今日todo
 
-## Tasks
 - [ ] Review project plan 📅 2026-07-03
+
+## 今日关联笔记
+
+## 想法/思考
+
+## 读书笔记
 ```
 
 Project note:
