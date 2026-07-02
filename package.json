@@ -1,0 +1,27 @@
+{
+  "name": "obsidian-dashboard",
+  "version": "0.1.0",
+  "description": "A personal home dashboard for Obsidian.",
+  "main": "main.js",
+  "scripts": {
+    "dev": "node esbuild.config.mjs",
+    "build": "tsc -noEmit -skipLibCheck && node esbuild.config.mjs production"
+  },
+  "keywords": [
+    "obsidian",
+    "obsidian-plugin",
+    "dashboard",
+    "daily-notes",
+    "tasks"
+  ],
+  "author": "HappyChenchen",
+  "license": "MIT",
+  "devDependencies": {
+    "@types/node": "^24.0.0",
+    "builtin-modules": "^5.0.0",
+    "esbuild": "^0.25.0",
+    "obsidian": "^1.8.7",
+    "typescript": "^5.8.0"
+  }
+}
+

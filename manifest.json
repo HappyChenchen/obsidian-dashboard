@@ -1,0 +1,10 @@
+{
+  "id": "dashboard-home",
+  "name": "Dashboard Home",
+  "version": "0.1.0",
+  "minAppVersion": "1.8.0",
+  "description": "A Notion-inspired home dashboard for daily notes, tasks, calendar, projects, reading, and focus sessions.",
+  "author": "HappyChenchen",
+  "isDesktopOnly": false
+}
+

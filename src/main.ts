@@ -1,0 +1,949 @@
+import {
+  App,
+  ItemView,
+  Notice,
+  Plugin,
+  PluginSettingTab,
+  Setting,
+  TFile,
+  WorkspaceLeaf,
+  moment,
+} from "obsidian";
+
+const VIEW_TYPE_DASHBOARD = "dashboard-home-view";
+
+interface DashboardSettings {
+  dailyFolder: string;
+  dailyDateFormat: string;
+  projectFolder: string;
+  articleFolder: string;
+  bookFolder: string;
+  defaultTaskSection: string;
+  pomodoroMinutes: number;
+  openOnStartup: boolean;
+}
+
+interface DashboardTask {
+  text: string;
+  done: boolean;
+  due?: string;
+  file: TFile;
+  line: number;
+  tags: string[];
+}
+
+interface DailySection {
+  heading: string;
+  preview: string;
+}
+
+interface ProjectSummary {
+  title: string;
+  file: TFile;
+  status: string;
+  progress: number;
+  updated: number;
+}
+
+interface LibraryItem {
+  title: string;
+  file: TFile;
+  kind: "article" | "book";
+  status: string;
+  updated: number;
+}
+
+interface DashboardData {
+  today: string;
+  todayFile?: TFile;
+  dailySections: DailySection[];
+  tasks: DashboardTask[];
+  calendarCounts: Map<string, number>;
+  projects: ProjectSummary[];
+  articles: LibraryItem[];
+  books: LibraryItem[];
+}
+
+const DEFAULT_SETTINGS: DashboardSettings = {
+  dailyFolder: "Daily",
+  dailyDateFormat: "YYYY-MM-DD",
+  projectFolder: "Projects",
+  articleFolder: "Articles",
+  bookFolder: "Books",
+  defaultTaskSection: "Tasks",
+  pomodoroMinutes: 25,
+  openOnStartup: false,
+};
+
+export default class DashboardPlugin extends Plugin {
+  settings: DashboardSettings = DEFAULT_SETTINGS;
+  private refreshTimer?: number;
+
+  async onload() {
+    await this.loadSettings();
+
+    this.registerView(
+      VIEW_TYPE_DASHBOARD,
+      (leaf) => new DashboardView(leaf, this),
+    );
+
+    this.addRibbonIcon("layout-dashboard", "Open dashboard", () => {
+      this.activateView();
+    });
+
+    this.addCommand({
+      id: "open-dashboard-home",
+      name: "Open dashboard home",
+      callback: () => this.activateView(),
+    });
+
+    this.addCommand({
+      id: "open-today-daily-note",
+      name: "Open today's daily note",
+      callback: async () => {
+        const file = await this.ensureDailyNote();
+        await this.openFile(file);
+      },
+    });
+
+    this.addCommand({
+      id: "refresh-dashboard-home",
+      name: "Refresh dashboard home",
+      callback: () => this.refreshDashboardViews(),
+    });
+
+    this.addSettingTab(new DashboardSettingTab(this.app, this));
+
+    this.registerEvent(this.app.vault.on("create", () => this.queueRefresh()));
+    this.registerEvent(this.app.vault.on("delete", () => this.queueRefresh()));
+    this.registerEvent(this.app.vault.on("modify", () => this.queueRefresh()));
+    this.registerEvent(
+      this.app.metadataCache.on("changed", () => this.queueRefresh()),
+    );
+
+    this.app.workspace.onLayoutReady(() => {
+      if (this.settings.openOnStartup) {
+        this.activateView();
+      }
+    });
+  }
+
+  onunload() {
+    this.app.workspace.detachLeavesOfType(VIEW_TYPE_DASHBOARD);
+  }
+
+  async loadSettings() {
+    this.settings = { ...DEFAULT_SETTINGS, ...(await this.loadData()) };
+  }
+
+  async saveSettings() {
+    await this.saveData(this.settings);
+    this.refreshDashboardViews();
+  }
+
+  async activateView() {
+    const existingLeaves = this.app.workspace.getLeavesOfType(VIEW_TYPE_DASHBOARD);
+    const leaf = existingLeaves[0] ?? this.app.workspace.getLeaf(false);
+
+    await leaf.setViewState({
+      type: VIEW_TYPE_DASHBOARD,
+      active: true,
+    });
+
+    this.app.workspace.revealLeaf(leaf);
+  }
+
+  refreshDashboardViews() {
+    for (const leaf of this.app.workspace.getLeavesOfType(VIEW_TYPE_DASHBOARD)) {
+      const view = leaf.view;
+      if (view instanceof DashboardView) {
+        view.render();
+      }
+    }
+  }
+
+  queueRefresh() {
+    window.clearTimeout(this.refreshTimer);
+    this.refreshTimer = window.setTimeout(() => this.refreshDashboardViews(), 400);
+  }
+
+  async collectData(): Promise<DashboardData> {
+    const today = moment().format(this.settings.dailyDateFormat);
+    const todayFile = this.getDailyFile(today);
+    const dailySections = todayFile
+      ? extractDailySections(await this.app.vault.cachedRead(todayFile))
+      : [];
+
+    const files = this.app.vault.getMarkdownFiles();
+    const tasks: DashboardTask[] = [];
+    const projects: ProjectSummary[] = [];
+    const articles: LibraryItem[] = [];
+    const books: LibraryItem[] = [];
+
+    for (const file of files) {
+      const content = await this.app.vault.cachedRead(file);
+      const cache = this.app.metadataCache.getFileCache(file);
+      const frontmatter = cache?.frontmatter ?? {};
+
+      tasks.push(...extractTasks(content, file));
+
+      if (isProjectFile(file, frontmatter, this.settings.projectFolder)) {
+        projects.push(buildProjectSummary(file, content, frontmatter));
+      }
+
+      if (isLibraryFile(file, frontmatter, this.settings.articleFolder, "article")) {
+        articles.push(buildLibraryItem(file, frontmatter, "article"));
+      }
+
+      if (isLibraryFile(file, frontmatter, this.settings.bookFolder, "book")) {
+        books.push(buildLibraryItem(file, frontmatter, "book"));
+      }
+    }
+
+    const openTasks = tasks
+      .filter((task) => !task.done)
+      .sort(compareTasksForDashboard)
+      .slice(0, 18);
+
+    const calendarCounts = new Map<string, number>();
+    for (const task of tasks) {
+      if (!task.done && task.due) {
+        calendarCounts.set(task.due, (calendarCounts.get(task.due) ?? 0) + 1);
+      }
+    }
+
+    return {
+      today,
+      todayFile,
+      dailySections,
+      tasks: openTasks,
+      calendarCounts,
+      projects: projects.sort((a, b) => b.updated - a.updated).slice(0, 10),
+      articles: articles.sort((a, b) => b.updated - a.updated).slice(0, 8),
+      books: books.sort((a, b) => b.updated - a.updated).slice(0, 8),
+    };
+  }
+
+  getDailyFile(date: string): TFile | undefined {
+    const folder = normalizeFolder(this.settings.dailyFolder);
+    const path = folder ? `${folder}/${date}.md` : `${date}.md`;
+    const file = this.app.vault.getAbstractFileByPath(path);
+    return file instanceof TFile ? file : undefined;
+  }
+
+  async ensureDailyNote(date = moment().format(this.settings.dailyDateFormat)): Promise<TFile> {
+    const existing = this.getDailyFile(date);
+    if (existing) {
+      return existing;
+    }
+
+    const folder = normalizeFolder(this.settings.dailyFolder);
+    if (folder) {
+      await ensureFolder(this.app, folder);
+    }
+
+    const path = folder ? `${folder}/${date}.md` : `${date}.md`;
+    const content = [
+      "---",
+      "type: daily",
+      `date: ${date}`,
+      "---",
+      "",
+      `# ${date}`,
+      "",
+      "## Daily",
+      "",
+      `## ${this.settings.defaultTaskSection}`,
+      "",
+    ].join("\n");
+
+    return this.app.vault.create(path, content);
+  }
+
+  async appendTaskToToday(text: string) {
+    const cleanText = text.trim();
+    if (!cleanText) {
+      return;
+    }
+
+    const file = await this.ensureDailyNote();
+    const content = await this.app.vault.cachedRead(file);
+    const nextContent = appendLineUnderHeading(
+      content,
+      this.settings.defaultTaskSection,
+      `- [ ] ${cleanText}`,
+    );
+    await this.app.vault.modify(file, nextContent);
+    new Notice("Task added to today's daily note.");
+  }
+
+  async appendPomodoroLog(minutes: number) {
+    const file = await this.ensureDailyNote();
+    const now = moment().format("HH:mm");
+    const content = await this.app.vault.cachedRead(file);
+    const nextContent = appendLineUnderHeading(
+      content,
+      "Pomodoro",
+      `- ${now} focused for ${minutes} minutes`,
+    );
+    await this.app.vault.modify(file, nextContent);
+  }
+
+  async toggleTask(task: DashboardTask) {
+    const content = await this.app.vault.cachedRead(task.file);
+    const lines = content.split("\n");
+    const line = lines[task.line];
+    if (!line) {
+      return;
+    }
+
+    lines[task.line] = line.replace(
+      /^(\s*-\s+\[)( |x|X|-)(\]\s+)/,
+      `$1${task.done ? " " : "x"}$3`,
+    );
+    await this.app.vault.modify(task.file, lines.join("\n"));
+  }
+
+  async openFile(file: TFile) {
+    await this.app.workspace.getLeaf(false).openFile(file);
+  }
+}
+
+class DashboardView extends ItemView {
+  private plugin: DashboardPlugin;
+  private pomodoroRemaining = 0;
+  private pomodoroRunning = false;
+  private pomodoroTimer?: number;
+
+  constructor(leaf: WorkspaceLeaf, plugin: DashboardPlugin) {
+    super(leaf);
+    this.plugin = plugin;
+    this.pomodoroRemaining = plugin.settings.pomodoroMinutes * 60;
+  }
+
+  getViewType() {
+    return VIEW_TYPE_DASHBOARD;
+  }
+
+  getDisplayText() {
+    return "Dashboard Home";
+  }
+
+  getIcon() {
+    return "layout-dashboard";
+  }
+
+  async onOpen() {
+    await this.render();
+  }
+
+  async onClose() {
+    window.clearInterval(this.pomodoroTimer);
+  }
+
+  async render() {
+    const root = this.containerEl.children[1] as HTMLElement;
+    root.empty();
+    root.addClass("dashboard-home");
+    root.createDiv({ cls: "dashboard-home__loading", text: "Loading dashboard..." });
+
+    const data = await this.plugin.collectData();
+    root.empty();
+
+    this.renderHeader(root, data);
+
+    const quickRow = root.createDiv({ cls: "dashboard-home__quick-row" });
+    this.renderQuickTask(quickRow);
+    this.renderPomodoro(quickRow);
+
+    const grid = root.createDiv({ cls: "dashboard-home__grid" });
+
+    this.renderDaily(grid, data);
+    this.renderTasks(grid, data);
+    this.renderCalendar(grid, data);
+    this.renderProjects(grid, data);
+    this.renderLibrary(grid, "Articles", data.articles);
+    this.renderLibrary(grid, "Books", data.books);
+  }
+
+  private renderHeader(root: HTMLElement, data: DashboardData) {
+    const header = root.createDiv({ cls: "dashboard-home__header" });
+    const titleBlock = header.createDiv();
+    titleBlock.createEl("p", {
+      cls: "dashboard-home__eyebrow",
+      text: moment().format("dddd, MMMM D"),
+    });
+    titleBlock.createEl("h1", { text: "Dashboard" });
+
+    const actions = header.createDiv({ cls: "dashboard-home__actions" });
+    const openDaily = actions.createEl("button", { text: "Open daily" });
+    openDaily.addEventListener("click", async () => {
+      const file = await this.plugin.ensureDailyNote(data.today);
+      await this.plugin.openFile(file);
+    });
+
+    const refresh = actions.createEl("button", { text: "Refresh" });
+    refresh.addEventListener("click", () => this.render());
+  }
+
+  private renderQuickTask(root: HTMLElement) {
+    const panel = root.createDiv({ cls: "dashboard-home__quick-task" });
+    const input = panel.createEl("input", {
+      attr: {
+        type: "text",
+        placeholder: "Capture a task, e.g. review project plan 📅 2026-07-03",
+      },
+    });
+    const button = panel.createEl("button", { text: "Add task" });
+    const submit = async () => {
+      await this.plugin.appendTaskToToday(input.value);
+      input.value = "";
+      await this.render();
+    };
+    button.addEventListener("click", submit);
+    input.addEventListener("keydown", (event) => {
+      if (event.key === "Enter") {
+        submit();
+      }
+    });
+  }
+
+  private renderPomodoro(root: HTMLElement) {
+    const panel = root.createDiv({ cls: "dashboard-home__pomodoro" });
+    panel.createEl("span", { cls: "dashboard-home__pomodoro-label", text: "Focus" });
+    const timer = panel.createEl("strong", {
+      text: formatDuration(this.pomodoroRemaining),
+    });
+
+    const start = panel.createEl("button", {
+      text: this.pomodoroRunning ? "Pause" : "Start",
+    });
+    start.addEventListener("click", () => {
+      if (this.pomodoroRunning) {
+        this.pausePomodoro();
+      } else {
+        this.startPomodoro(timer, start);
+      }
+      start.setText(this.pomodoroRunning ? "Pause" : "Start");
+    });
+
+    const reset = panel.createEl("button", { text: "Reset" });
+    reset.addEventListener("click", () => {
+      this.pausePomodoro();
+      this.pomodoroRemaining = this.plugin.settings.pomodoroMinutes * 60;
+      timer.setText(formatDuration(this.pomodoroRemaining));
+      start.setText("Start");
+    });
+  }
+
+  private startPomodoro(timer: HTMLElement, button: HTMLButtonElement) {
+    this.pomodoroRunning = true;
+    window.clearInterval(this.pomodoroTimer);
+    this.pomodoroTimer = window.setInterval(async () => {
+      this.pomodoroRemaining -= 1;
+      timer.setText(formatDuration(this.pomodoroRemaining));
+
+      if (this.pomodoroRemaining <= 0) {
+        this.pausePomodoro();
+        this.pomodoroRemaining = this.plugin.settings.pomodoroMinutes * 60;
+        timer.setText(formatDuration(this.pomodoroRemaining));
+        button.setText("Start");
+        await this.plugin.appendPomodoroLog(this.plugin.settings.pomodoroMinutes);
+        new Notice("Pomodoro complete.");
+      }
+    }, 1000);
+  }
+
+  private pausePomodoro() {
+    this.pomodoroRunning = false;
+    window.clearInterval(this.pomodoroTimer);
+  }
+
+  private renderDaily(root: HTMLElement, data: DashboardData) {
+    const card = createCard(root, "Daily");
+
+    if (!data.todayFile) {
+      card.createEl("p", {
+        cls: "dashboard-home__muted",
+        text: "No daily note yet.",
+      });
+      const button = card.createEl("button", { text: "Create daily note" });
+      button.addEventListener("click", async () => {
+        const file = await this.plugin.ensureDailyNote(data.today);
+        await this.plugin.openFile(file);
+      });
+      return;
+    }
+
+    if (data.dailySections.length === 0) {
+      card.createEl("p", {
+        cls: "dashboard-home__muted",
+        text: "Today's note has no second-level sections yet.",
+      });
+      return;
+    }
+
+    for (const section of data.dailySections.slice(0, 5)) {
+      const item = card.createDiv({ cls: "dashboard-home__section-preview" });
+      item.createEl("h3", { text: section.heading });
+      item.createEl("p", { text: section.preview || "No content yet." });
+    }
+  }
+
+  private renderTasks(root: HTMLElement, data: DashboardData) {
+    const card = createCard(root, "Tasks");
+
+    if (data.tasks.length === 0) {
+      card.createEl("p", {
+        cls: "dashboard-home__muted",
+        text: "No open tasks found.",
+      });
+      return;
+    }
+
+    for (const task of data.tasks) {
+      const row = card.createDiv({ cls: "dashboard-home__task" });
+      const checkbox = row.createEl("input", {
+        attr: { type: "checkbox" },
+      });
+      checkbox.checked = task.done;
+      checkbox.addEventListener("change", async () => {
+        await this.plugin.toggleTask(task);
+        await this.render();
+      });
+
+      const body = row.createDiv({ cls: "dashboard-home__task-body" });
+      body.createEl("span", { text: stripTaskMetadata(task.text) });
+      const meta = body.createEl("small", {
+        text: `${task.due ?? "No date"} · ${task.file.basename}`,
+      });
+      meta.addEventListener("click", () => this.plugin.openFile(task.file));
+    }
+  }
+
+  private renderCalendar(root: HTMLElement, data: DashboardData) {
+    const card = createCard(root, "Calendar");
+    const month = moment();
+    const start = month.clone().startOf("month").startOf("week");
+    const today = moment().format("YYYY-MM-DD");
+
+    const calendar = card.createDiv({ cls: "dashboard-home__calendar" });
+    for (const dayName of ["S", "M", "T", "W", "T", "F", "S"]) {
+      calendar.createDiv({ cls: "dashboard-home__calendar-weekday", text: dayName });
+    }
+
+    for (let index = 0; index < 42; index += 1) {
+      const day = start.clone().add(index, "days");
+      const iso = day.format("YYYY-MM-DD");
+      const cell = calendar.createDiv({
+        cls: [
+          "dashboard-home__calendar-day",
+          day.month() === month.month() ? "" : "is-muted",
+          iso === today ? "is-today" : "",
+        ].join(" "),
+      });
+      cell.createEl("span", { text: day.format("D") });
+      const count = data.calendarCounts.get(iso) ?? 0;
+      if (count > 0) {
+        cell.createEl("small", { text: String(count) });
+      }
+      cell.addEventListener("click", async () => {
+        const file = await this.plugin.ensureDailyNote(
+          day.format(this.plugin.settings.dailyDateFormat),
+        );
+        await this.plugin.openFile(file);
+      });
+    }
+  }
+
+  private renderProjects(root: HTMLElement, data: DashboardData) {
+    const card = createCard(root, "Projects");
+
+    if (data.projects.length === 0) {
+      card.createEl("p", {
+        cls: "dashboard-home__muted",
+        text: "No project notes found.",
+      });
+      return;
+    }
+
+    for (const project of data.projects) {
+      const row = card.createDiv({ cls: "dashboard-home__project" });
+      const heading = row.createDiv({ cls: "dashboard-home__project-heading" });
+      heading.createEl("button", { text: project.title }).addEventListener("click", () => {
+        this.plugin.openFile(project.file);
+      });
+      heading.createEl("span", { text: project.status });
+
+      const bar = row.createDiv({ cls: "dashboard-home__progress" });
+      bar.createDiv({
+        cls: "dashboard-home__progress-fill",
+        attr: { style: `width: ${project.progress}%` },
+      });
+    }
+  }
+
+  private renderLibrary(root: HTMLElement, title: string, items: LibraryItem[]) {
+    const card = createCard(root, title);
+
+    if (items.length === 0) {
+      card.createEl("p", {
+        cls: "dashboard-home__muted",
+        text: `No ${title.toLowerCase()} found.`,
+      });
+      return;
+    }
+
+    for (const item of items) {
+      const row = card.createDiv({ cls: "dashboard-home__library-item" });
+      row.createEl("button", { text: item.title }).addEventListener("click", () => {
+        this.plugin.openFile(item.file);
+      });
+      row.createEl("small", { text: item.status });
+    }
+  }
+}
+
+class DashboardSettingTab extends PluginSettingTab {
+  plugin: DashboardPlugin;
+
+  constructor(app: App, plugin: DashboardPlugin) {
+    super(app, plugin);
+    this.plugin = plugin;
+  }
+
+  display(): void {
+    const { containerEl } = this;
+    containerEl.empty();
+
+    containerEl.createEl("h2", { text: "Dashboard Home" });
+
+    new Setting(containerEl)
+      .setName("Daily folder")
+      .setDesc("Folder used for daily notes.")
+      .addText((text) =>
+        text
+          .setPlaceholder("Daily")
+          .setValue(this.plugin.settings.dailyFolder)
+          .onChange(async (value) => {
+            this.plugin.settings.dailyFolder = value;
+            await this.plugin.saveSettings();
+          }),
+      );
+
+    new Setting(containerEl)
+      .setName("Daily date format")
+      .setDesc("Moment.js format used to name daily notes.")
+      .addText((text) =>
+        text
+          .setPlaceholder("YYYY-MM-DD")
+          .setValue(this.plugin.settings.dailyDateFormat)
+          .onChange(async (value) => {
+            this.plugin.settings.dailyDateFormat = value || DEFAULT_SETTINGS.dailyDateFormat;
+            await this.plugin.saveSettings();
+          }),
+      );
+
+    new Setting(containerEl)
+      .setName("Project folder")
+      .setDesc("Notes in this folder are shown as projects.")
+      .addText((text) =>
+        text
+          .setPlaceholder("Projects")
+          .setValue(this.plugin.settings.projectFolder)
+          .onChange(async (value) => {
+            this.plugin.settings.projectFolder = value;
+            await this.plugin.saveSettings();
+          }),
+      );
+
+    new Setting(containerEl)
+      .setName("Article folder")
+      .setDesc("Notes in this folder are shown as saved articles.")
+      .addText((text) =>
+        text
+          .setPlaceholder("Articles")
+          .setValue(this.plugin.settings.articleFolder)
+          .onChange(async (value) => {
+            this.plugin.settings.articleFolder = value;
+            await this.plugin.saveSettings();
+          }),
+      );
+
+    new Setting(containerEl)
+      .setName("Book folder")
+      .setDesc("Notes in this folder are shown as reading notes.")
+      .addText((text) =>
+        text
+          .setPlaceholder("Books")
+          .setValue(this.plugin.settings.bookFolder)
+          .onChange(async (value) => {
+            this.plugin.settings.bookFolder = value;
+            await this.plugin.saveSettings();
+          }),
+      );
+
+    new Setting(containerEl)
+      .setName("Default task section")
+      .setDesc("Quick-captured tasks are appended under this heading in the daily note.")
+      .addText((text) =>
+        text
+          .setPlaceholder("Tasks")
+          .setValue(this.plugin.settings.defaultTaskSection)
+          .onChange(async (value) => {
+            this.plugin.settings.defaultTaskSection =
+              value || DEFAULT_SETTINGS.defaultTaskSection;
+            await this.plugin.saveSettings();
+          }),
+      );
+
+    new Setting(containerEl)
+      .setName("Pomodoro minutes")
+      .setDesc("Length of one focus session.")
+      .addSlider((slider) =>
+        slider
+          .setLimits(5, 60, 5)
+          .setValue(this.plugin.settings.pomodoroMinutes)
+          .setDynamicTooltip()
+          .onChange(async (value) => {
+            this.plugin.settings.pomodoroMinutes = value;
+            await this.plugin.saveSettings();
+          }),
+      );
+
+    new Setting(containerEl)
+      .setName("Open on startup")
+      .setDesc("Open the dashboard when Obsidian layout is ready.")
+      .addToggle((toggle) =>
+        toggle.setValue(this.plugin.settings.openOnStartup).onChange(async (value) => {
+          this.plugin.settings.openOnStartup = value;
+          await this.plugin.saveSettings();
+        }),
+      );
+  }
+}
+
+function createCard(root: HTMLElement, title: string): HTMLElement {
+  const card = root.createDiv({ cls: "dashboard-home__card" });
+  card.createEl("h2", { text: title });
+  return card;
+}
+
+function extractDailySections(content: string): DailySection[] {
+  const lines = content.split("\n");
+  const sections: DailySection[] = [];
+  let current: { heading: string; lines: string[] } | undefined;
+
+  for (const line of lines) {
+    const heading = /^##\s+(.+)$/.exec(line);
+    if (heading) {
+      if (current) {
+        sections.push(toDailySection(current));
+      }
+      current = { heading: heading[1].trim(), lines: [] };
+      continue;
+    }
+
+    if (current && !/^---$/.test(line)) {
+      current.lines.push(line);
+    }
+  }
+
+  if (current) {
+    sections.push(toDailySection(current));
+  }
+
+  return sections;
+}
+
+function toDailySection(section: { heading: string; lines: string[] }): DailySection {
+  const preview = section.lines
+    .map((line) => line.trim())
+    .filter(Boolean)
+    .slice(0, 4)
+    .join(" ");
+
+  return {
+    heading: section.heading,
+    preview,
+  };
+}
+
+function extractTasks(content: string, file: TFile): DashboardTask[] {
+  return content
+    .split("\n")
+    .map((line, index): DashboardTask | undefined => {
+      const match = /^(\s*)-\s+\[( |x|X|-)\]\s+(.+)$/.exec(line);
+      if (!match) {
+        return undefined;
+      }
+
+      const text = match[3].trim();
+      return {
+        text,
+        done: match[2].toLowerCase() === "x",
+        due: extractDate(text),
+        file,
+        line: index,
+        tags: Array.from(text.matchAll(/#[\p{Letter}\p{Number}/_-]+/gu)).map(
+          (tag) => tag[0],
+        ),
+      };
+    })
+    .filter((task): task is DashboardTask => Boolean(task));
+}
+
+function extractDate(text: string): string | undefined {
+  const explicit =
+    /(?:due|scheduled|start|date)::\s*(\d{4}-\d{2}-\d{2})/i.exec(text) ??
+    /[📅⏳🛫]\s*(\d{4}-\d{2}-\d{2})/u.exec(text) ??
+    /\b(\d{4}-\d{2}-\d{2})\b/.exec(text);
+
+  return explicit?.[1];
+}
+
+function stripTaskMetadata(text: string): string {
+  return text
+    .replace(/(?:due|scheduled|start|date)::\s*\d{4}-\d{2}-\d{2}/gi, "")
+    .replace(/[📅⏳🛫]\s*\d{4}-\d{2}-\d{2}/gu, "")
+    .trim();
+}
+
+function compareTasksForDashboard(a: DashboardTask, b: DashboardTask): number {
+  if (a.due && b.due) {
+    return a.due.localeCompare(b.due);
+  }
+  if (a.due) {
+    return -1;
+  }
+  if (b.due) {
+    return 1;
+  }
+  return b.file.stat.mtime - a.file.stat.mtime;
+}
+
+function isProjectFile(
+  file: TFile,
+  frontmatter: Record<string, unknown>,
+  folder: string,
+): boolean {
+  const type = String(frontmatter.type ?? "").toLowerCase();
+  return isInFolder(file, folder) || type === "project";
+}
+
+function buildProjectSummary(
+  file: TFile,
+  content: string,
+  frontmatter: Record<string, unknown>,
+): ProjectSummary {
+  const tasks = extractTasks(content, file);
+  const total = tasks.length;
+  const done = tasks.filter((task) => task.done).length;
+
+  return {
+    title: String(frontmatter.title ?? file.basename),
+    file,
+    status: String(frontmatter.status ?? "active"),
+    progress: total === 0 ? 0 : Math.round((done / total) * 100),
+    updated: file.stat.mtime,
+  };
+}
+
+function isLibraryFile(
+  file: TFile,
+  frontmatter: Record<string, unknown>,
+  folder: string,
+  kind: "article" | "book",
+): boolean {
+  const type = String(frontmatter.type ?? "").toLowerCase();
+  const tags = normalizeTags(frontmatter.tags);
+  return isInFolder(file, folder) || type === kind || tags.includes(kind);
+}
+
+function buildLibraryItem(
+  file: TFile,
+  frontmatter: Record<string, unknown>,
+  kind: "article" | "book",
+): LibraryItem {
+  return {
+    title: String(frontmatter.title ?? file.basename),
+    file,
+    kind,
+    status: String(frontmatter.status ?? (kind === "book" ? "reading" : "saved")),
+    updated: file.stat.mtime,
+  };
+}
+
+function normalizeTags(value: unknown): string[] {
+  if (Array.isArray(value)) {
+    return value.map((tag) => String(tag).replace(/^#/, "").toLowerCase());
+  }
+
+  if (typeof value === "string") {
+    return value
+      .split(/[,\s]+/)
+      .map((tag) => tag.replace(/^#/, "").toLowerCase())
+      .filter(Boolean);
+  }
+
+  return [];
+}
+
+function isInFolder(file: TFile, folder: string): boolean {
+  const normalized = normalizeFolder(folder);
+  return Boolean(normalized) && file.path.startsWith(`${normalized}/`);
+}
+
+function normalizeFolder(folder: string): string {
+  return folder.trim().replace(/^\/+|\/+$/g, "");
+}
+
+async function ensureFolder(app: App, folder: string) {
+  const parts = normalizeFolder(folder).split("/").filter(Boolean);
+  let current = "";
+
+  for (const part of parts) {
+    current = current ? `${current}/${part}` : part;
+    if (!app.vault.getAbstractFileByPath(current)) {
+      await app.vault.createFolder(current);
+    }
+  }
+}
+
+function appendLineUnderHeading(
+  content: string,
+  heading: string,
+  lineToAppend: string,
+): string {
+  const lines = content.split("\n");
+  const headingPattern = new RegExp(`^##\\s+${escapeRegExp(heading)}\\s*$`, "i");
+  const headingIndex = lines.findIndex((line) => headingPattern.test(line));
+
+  if (headingIndex === -1) {
+    const suffix = content.endsWith("\n") ? "" : "\n";
+    return `${content}${suffix}\n## ${heading}\n${lineToAppend}\n`;
+  }
+
+  let insertIndex = headingIndex + 1;
+  while (insertIndex < lines.length && !/^##\s+/.test(lines[insertIndex])) {
+    insertIndex += 1;
+  }
+
+  lines.splice(insertIndex, 0, lineToAppend);
+  return lines.join("\n");
+}
+
+function escapeRegExp(value: string): string {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
+function formatDuration(seconds: number): string {
+  const safeSeconds = Math.max(0, seconds);
+  const minutes = Math.floor(safeSeconds / 60);
+  const remainingSeconds = safeSeconds % 60;
+  return `${String(minutes).padStart(2, "0")}:${String(remainingSeconds).padStart(
+    2,
+    "0",
+  )}`;
+}
+
