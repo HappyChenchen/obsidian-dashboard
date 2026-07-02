@@ -660,10 +660,6 @@ class DashboardView extends ItemView {
         ].join(" "),
       });
       cell.createEl("span", { text: day.format("D") });
-      const count = data.calendarCounts.get(iso) ?? 0;
-      if (count > 0) {
-        cell.createEl("small", { text: String(count) });
-      }
       cell.addEventListener("click", async () => {
         this.selectedCalendarDate = iso;
         await this.render();

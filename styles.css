@@ -245,28 +245,6 @@
   color: var(--text-on-accent);
 }
 
-.dashboard-home__calendar-day small {
-  align-items: center;
-  background: var(--dashboard-accent);
-  border-radius: 999px;
-  bottom: 2px;
-  color: var(--text-on-accent);
-  display: flex;
-  font-size: 10px;
-  height: 14px;
-  justify-content: center;
-  line-height: 1;
-  min-width: 14px;
-  padding: 0 3px;
-  position: absolute;
-  right: 2px;
-}
-
-.dashboard-home__calendar-day.is-selected small {
-  background: var(--background-primary);
-  color: var(--text-accent);
-}
-
 .dashboard-home__calendar-todos {
   border-top: 1px solid var(--dashboard-border);
   margin-top: 12px;
