@@ -271,6 +271,20 @@
   overflow-wrap: anywhere;
 }
 
+.dashboard-home__calendar-todo-body {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.dashboard-home__calendar-todo-body small {
+  color: var(--dashboard-text-muted);
+  cursor: pointer;
+  font-size: 11px;
+}
+
 .dashboard-home__project,
 .dashboard-home__library-item {
   border-top: 1px solid var(--dashboard-border);

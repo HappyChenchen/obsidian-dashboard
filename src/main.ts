@@ -65,6 +65,7 @@ interface DashboardData {
   todayFile?: TFile;
   dailySections: DailySection[];
   tasks: DashboardTask[];
+  allTasks: DashboardTask[];
   calendarCounts: Map<string, number>;
   projects: ProjectSummary[];
   articles: LibraryItem[];
@@ -183,7 +184,7 @@ export default class DashboardPlugin extends Plugin {
 
     const files = this.app.vault.getMarkdownFiles();
     const tasks: DashboardTask[] = [];
-    const dailyTodoCounts = new Map<string, number>();
+    const dailyTodosByDate = new Map<string, DashboardTask[]>();
     const projects: ProjectSummary[] = [];
     const articles: LibraryItem[] = [];
     const books: LibraryItem[] = [];
@@ -202,7 +203,7 @@ export default class DashboardPlugin extends Plugin {
           file,
           this.settings.defaultTaskSection,
         ).filter((task) => !task.done);
-        dailyTodoCounts.set(dailyDate, dailyTodos.length);
+        dailyTodosByDate.set(dailyDate, dailyTodos);
       }
 
       if (isProjectFile(file, frontmatter, this.settings.projectFolder)) {
@@ -218,20 +219,35 @@ export default class DashboardPlugin extends Plugin {
       }
     }
 
-    const openTasks = tasks
+    const allOpenTasks = tasks
       .filter((task) => !task.done)
-      .sort(compareTasksForDashboard)
-      .slice(0, 18);
+      .sort(compareTasksForDashboard);
+
+    const todayIso = moment(today, this.settings.dailyDateFormat, true).format("YYYY-MM-DD");
+    const todayTasks = getTasksForDate(
+      todayIso,
+      dailyTodosByDate.get(todayIso) ?? [],
+      allOpenTasks,
+    ).slice(0, 18);
 
     const calendarCounts = new Map<string, number>();
-    for (const task of tasks) {
-      if (!task.done && task.due) {
-        calendarCounts.set(task.due, (calendarCounts.get(task.due) ?? 0) + 1);
+    const calendarDates = new Set<string>();
+    for (const task of allOpenTasks) {
+      if (task.due) {
+        calendarDates.add(task.due);
       }
     }
-    for (const [date, count] of dailyTodoCounts) {
+    for (const date of dailyTodosByDate.keys()) {
+      calendarDates.add(date);
+    }
+    for (const date of calendarDates) {
+      const count = getTasksForDate(
+        date,
+        dailyTodosByDate.get(date) ?? [],
+        allOpenTasks,
+      ).length;
       if (count > 0) {
-        calendarCounts.set(date, Math.max(calendarCounts.get(date) ?? 0, count));
+        calendarCounts.set(date, count);
       }
     }
 
@@ -239,7 +255,8 @@ export default class DashboardPlugin extends Plugin {
       today,
       todayFile,
       dailySections,
-      tasks: openTasks,
+      tasks: todayTasks,
+      allTasks: allOpenTasks,
       calendarCounts,
       projects: projects.sort((a, b) => b.updated - a.updated).slice(0, 10),
       articles: articles.sort((a, b) => b.updated - a.updated).slice(0, 8),
@@ -276,6 +293,13 @@ export default class DashboardPlugin extends Plugin {
 
     const content = await this.app.vault.cachedRead(file);
     return extractTasksFromHeading(content, file, this.settings.defaultTaskSection);
+  }
+
+  async getTodosForDate(date: string, allTasks: DashboardTask[]): Promise<DashboardTask[]> {
+    const dailyTodos = await this.getDailyTodoTasks(
+      moment(date).format(this.settings.dailyDateFormat),
+    );
+    return getTasksForDate(date, dailyTodos, allTasks);
   }
 
   async ensureDailyNote(date = moment().format(this.settings.dailyDateFormat)): Promise<TFile> {
@@ -583,12 +607,12 @@ class DashboardView extends ItemView {
   }
 
   private renderTasks(root: HTMLElement, data: DashboardData) {
-    const card = createCard(root, "Todo");
+    const card = createCard(root, "今日todo");
 
     if (data.tasks.length === 0) {
       card.createEl("p", {
         cls: "dashboard-home__muted",
-        text: "No open tasks found.",
+        text: "今天暂无 todo。",
       });
       return;
     }
@@ -649,16 +673,16 @@ class DashboardView extends ItemView {
     const todoPanel = card.createDiv({ cls: "dashboard-home__calendar-todos" });
     todoPanel.createEl("h3", { text: `${this.selectedCalendarDate} · 今日todo` });
 
-    const selectedDate = moment(this.selectedCalendarDate).format(
-      this.plugin.settings.dailyDateFormat,
+    const dateTodos = await this.plugin.getTodosForDate(
+      this.selectedCalendarDate,
+      data.allTasks,
     );
-    const dailyTodos = await this.plugin.getDailyTodoTasks(selectedDate);
-    if (dailyTodos.length === 0) {
+    if (dateTodos.length === 0) {
       todoPanel.createEl("p", { cls: "dashboard-home__muted", text: "暂无 todo" });
       return;
     }
 
-    for (const task of dailyTodos) {
+    for (const task of dateTodos) {
       const row = todoPanel.createDiv({ cls: "dashboard-home__calendar-todo" });
       const checkbox = row.createEl("input", { attr: { type: "checkbox" } });
       checkbox.checked = task.done;
@@ -666,7 +690,11 @@ class DashboardView extends ItemView {
         await this.plugin.toggleTask(task);
         await this.render();
       });
-      row.createEl("span", { text: stripTaskMetadata(task.text) });
+      const body = row.createDiv({ cls: "dashboard-home__calendar-todo-body" });
+      body.createEl("span", { text: stripTaskMetadata(task.text) });
+      body.createEl("small", { text: task.file.basename }).addEventListener("click", () => {
+        this.plugin.openFile(task.file);
+      });
     }
   }
 
@@ -956,6 +984,32 @@ function extractTasksFromHeading(
   }
 
   return tasks;
+}
+
+function getTasksForDate(
+  date: string,
+  dailyTodos: DashboardTask[],
+  allOpenTasks: DashboardTask[],
+): DashboardTask[] {
+  const tasksByLocation = new Map<string, DashboardTask>();
+
+  for (const task of dailyTodos) {
+    if (!task.done) {
+      tasksByLocation.set(getTaskLocation(task), task);
+    }
+  }
+
+  for (const task of allOpenTasks) {
+    if (!task.done && task.due === date) {
+      tasksByLocation.set(getTaskLocation(task), task);
+    }
+  }
+
+  return Array.from(tasksByLocation.values()).sort(compareTasksForDashboard);
+}
+
+function getTaskLocation(task: DashboardTask): string {
+  return `${task.file.path}:${task.line}`;
 }
 
 function extractDate(text: string): string | undefined {
