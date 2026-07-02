@@ -223,6 +223,11 @@
   font-size: 12px;
   justify-content: center;
   min-width: 0;
+  position: relative;
+}
+
+.dashboard-home__calendar-day span {
+  line-height: 1;
 }
 
 .dashboard-home__calendar-day.is-muted {
@@ -241,12 +246,25 @@
 }
 
 .dashboard-home__calendar-day small {
-  color: var(--dashboard-accent);
+  align-items: center;
+  background: var(--dashboard-accent);
+  border-radius: 999px;
+  bottom: 2px;
+  color: var(--text-on-accent);
+  display: flex;
   font-size: 10px;
+  height: 14px;
+  justify-content: center;
+  line-height: 1;
+  min-width: 14px;
+  padding: 0 3px;
+  position: absolute;
+  right: 2px;
 }
 
 .dashboard-home__calendar-day.is-selected small {
-  color: var(--text-on-accent);
+  background: var(--background-primary);
+  color: var(--text-accent);
 }
 
 .dashboard-home__calendar-todos {
