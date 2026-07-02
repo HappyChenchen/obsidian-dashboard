@@ -13,12 +13,15 @@ Dashboard Home is a personal Obsidian homepage plugin inspired by Notion dashboa
 - Project summaries from a configured folder or `type: project` notes.
 - Article and book lists from configured folders, `type`, or tags.
 - Settings for folders, daily date format, task heading, Pomodoro length, and startup behavior.
+- Daily folders can use date-only path segments such as `daily/MM` or `Journal/YYYY/MM`.
 
 ## Suggested note schema
 
 Daily note:
 
 ```md
+Path: daily/07/2026-07-02.md
+
 ---
 type: daily
 date: 2026-07-02
@@ -78,4 +81,3 @@ For local Obsidian testing, copy `main.js`, `manifest.json`, and `styles.css` in
 ```text
 <vault>/.obsidian/plugins/dashboard-home/
 ```
-

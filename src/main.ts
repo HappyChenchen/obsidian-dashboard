@@ -225,7 +225,11 @@ export default class DashboardPlugin extends Plugin {
   }
 
   getDailyFile(date: string): TFile | undefined {
-    const folder = normalizeFolder(this.settings.dailyFolder);
+    const folder = renderDailyFolder(
+      this.settings.dailyFolder,
+      date,
+      this.settings.dailyDateFormat,
+    );
     const path = folder ? `${folder}/${date}.md` : `${date}.md`;
     const file = this.app.vault.getAbstractFileByPath(path);
     return file instanceof TFile ? file : undefined;
@@ -237,7 +241,11 @@ export default class DashboardPlugin extends Plugin {
       return existing;
     }
 
-    const folder = normalizeFolder(this.settings.dailyFolder);
+    const folder = renderDailyFolder(
+      this.settings.dailyFolder,
+      date,
+      this.settings.dailyDateFormat,
+    );
     if (folder) {
       await ensureFolder(this.app, folder);
     }
@@ -620,10 +628,10 @@ class DashboardSettingTab extends PluginSettingTab {
 
     new Setting(containerEl)
       .setName("Daily folder")
-      .setDesc("Folder used for daily notes.")
+      .setDesc("Folder used for daily notes. Date-only path segments like YYYY or MM are expanded from the note date.")
       .addText((text) =>
         text
-          .setPlaceholder("Daily")
+          .setPlaceholder("daily/MM")
           .setValue(this.plugin.settings.dailyFolder)
           .onChange(async (value) => {
             this.plugin.settings.dailyFolder = value;
@@ -898,6 +906,31 @@ function normalizeFolder(folder: string): string {
   return folder.trim().replace(/^\/+|\/+$/g, "");
 }
 
+function renderDailyFolder(
+  folderTemplate: string,
+  date: string,
+  dateFormat: string,
+): string {
+  const normalized = normalizeFolder(folderTemplate);
+  if (!normalized) {
+    return "";
+  }
+
+  const parsed = moment(date, dateFormat, true);
+  const dailyMoment = parsed.isValid() ? parsed : moment(date);
+
+  return normalized
+    .split("/")
+    .map((segment) =>
+      isDateFolderSegment(segment) ? dailyMoment.format(segment) : segment,
+    )
+    .join("/");
+}
+
+function isDateFolderSegment(segment: string): boolean {
+  return /^(Y{2,4}|M{1,2}|D{1,2}|[-_.\s])+$/.test(segment);
+}
+
 async function ensureFolder(app: App, folder: string) {
   const parts = normalizeFolder(folder).split("/").filter(Boolean);
   let current = "";
@@ -946,4 +979,3 @@ function formatDuration(seconds: number): string {
     "0",
   )}`;
 }
-
