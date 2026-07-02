@@ -116,6 +116,19 @@
   margin: 0 0 12px;
 }
 
+.dashboard-home__file-link {
+  background: transparent;
+  border: 0;
+  color: var(--dashboard-text-muted);
+  display: block;
+  font-size: 12px;
+  margin: -6px 0 10px;
+  min-height: 0;
+  overflow-wrap: anywhere;
+  padding: 0;
+  text-align: left;
+}
+
 .dashboard-home__section-preview {
   border-top: 1px solid var(--dashboard-border);
   padding: 10px 0;
@@ -285,4 +298,3 @@
     justify-content: flex-start;
   }
 }
-

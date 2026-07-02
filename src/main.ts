@@ -468,7 +468,7 @@ class DashboardView extends ItemView {
   }
 
   private renderDaily(root: HTMLElement, data: DashboardData) {
-    const card = createCard(root, "Daily");
+    const card = createCard(root, data.today);
 
     if (!data.todayFile) {
       card.createEl("p", {
@@ -482,6 +482,12 @@ class DashboardView extends ItemView {
       });
       return;
     }
+
+    const path = card.createEl("button", {
+      cls: "dashboard-home__file-link",
+      text: data.todayFile.path,
+    });
+    path.addEventListener("click", () => this.plugin.openFile(data.todayFile as TFile));
 
     if (data.dailySections.length === 0) {
       card.createEl("p", {
