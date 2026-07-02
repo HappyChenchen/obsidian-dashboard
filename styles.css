@@ -165,6 +165,12 @@
   -webkit-box-orient: vertical;
 }
 
+.dashboard-home__thought-content {
+  display: block;
+  white-space: pre-wrap;
+  -webkit-line-clamp: unset;
+}
+
 .dashboard-home__task {
   align-items: flex-start;
   display: flex;
@@ -228,9 +234,41 @@
   color: var(--text-accent);
 }
 
+.dashboard-home__calendar-day.is-selected {
+  background: var(--interactive-accent);
+  border-color: var(--interactive-accent);
+  color: var(--text-on-accent);
+}
+
 .dashboard-home__calendar-day small {
   color: var(--dashboard-accent);
   font-size: 10px;
+}
+
+.dashboard-home__calendar-day.is-selected small {
+  color: var(--text-on-accent);
+}
+
+.dashboard-home__calendar-todos {
+  border-top: 1px solid var(--dashboard-border);
+  margin-top: 12px;
+  padding-top: 10px;
+}
+
+.dashboard-home__calendar-todos h3 {
+  font-size: 13px;
+  margin: 0 0 8px;
+}
+
+.dashboard-home__calendar-todo {
+  align-items: flex-start;
+  display: flex;
+  gap: 8px;
+  padding: 6px 0;
+}
+
+.dashboard-home__calendar-todo span {
+  overflow-wrap: anywhere;
 }
 
 .dashboard-home__project,

@@ -6,9 +6,10 @@ Dashboard Home is a personal Obsidian homepage plugin inspired by Notion dashboa
 
 - Custom dashboard view with ribbon icon and command.
 - Daily note preview from second-level headings.
+- Daily card shows only the `想法/思考` section.
 - Quick task capture into today's daily note.
 - Markdown task scan across the vault.
-- Mini calendar with due-task counts.
+- Mini calendar with daily todo counts; selecting a date shows only that day's `今日todo`.
 - Local Pomodoro timer with completion logs written to the daily note.
 - Project summaries from a configured folder or `type: project` notes.
 - Article and book lists from configured folders, `type`, or tags.

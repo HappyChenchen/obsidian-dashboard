@@ -41,6 +41,7 @@ interface DashboardTask {
 interface DailySection {
   heading: string;
   preview: string;
+  lines: string[];
 }
 
 interface ProjectSummary {
@@ -182,6 +183,7 @@ export default class DashboardPlugin extends Plugin {
 
     const files = this.app.vault.getMarkdownFiles();
     const tasks: DashboardTask[] = [];
+    const dailyTodoCounts = new Map<string, number>();
     const projects: ProjectSummary[] = [];
     const articles: LibraryItem[] = [];
     const books: LibraryItem[] = [];
@@ -192,6 +194,16 @@ export default class DashboardPlugin extends Plugin {
       const frontmatter = cache?.frontmatter ?? {};
 
       tasks.push(...extractTasks(content, file));
+
+      const dailyDate = this.getDateFromDailyFile(file);
+      if (dailyDate) {
+        const dailyTodos = extractTasksFromHeading(
+          content,
+          file,
+          this.settings.defaultTaskSection,
+        ).filter((task) => !task.done);
+        dailyTodoCounts.set(dailyDate, dailyTodos.length);
+      }
 
       if (isProjectFile(file, frontmatter, this.settings.projectFolder)) {
         projects.push(buildProjectSummary(file, content, frontmatter));
@@ -217,6 +229,11 @@ export default class DashboardPlugin extends Plugin {
         calendarCounts.set(task.due, (calendarCounts.get(task.due) ?? 0) + 1);
       }
     }
+    for (const [date, count] of dailyTodoCounts) {
+      if (count > 0) {
+        calendarCounts.set(date, Math.max(calendarCounts.get(date) ?? 0, count));
+      }
+    }
 
     return {
       today,
@@ -239,6 +256,26 @@ export default class DashboardPlugin extends Plugin {
     const path = folder ? `${folder}/${date}.md` : `${date}.md`;
     const file = this.app.vault.getAbstractFileByPath(path);
     return file instanceof TFile ? file : undefined;
+  }
+
+  getDateFromDailyFile(file: TFile): string | undefined {
+    const firstStaticSegment = getFirstStaticDailyFolderSegment(this.settings.dailyFolder);
+    if (firstStaticSegment && !file.path.startsWith(`${firstStaticSegment}/`)) {
+      return undefined;
+    }
+
+    const parsed = moment(file.basename, this.settings.dailyDateFormat, true);
+    return parsed.isValid() ? parsed.format("YYYY-MM-DD") : undefined;
+  }
+
+  async getDailyTodoTasks(date: string): Promise<DashboardTask[]> {
+    const file = this.getDailyFile(date);
+    if (!file) {
+      return [];
+    }
+
+    const content = await this.app.vault.cachedRead(file);
+    return extractTasksFromHeading(content, file, this.settings.defaultTaskSection);
   }
 
   async ensureDailyNote(date = moment().format(this.settings.dailyDateFormat)): Promise<TFile> {
@@ -344,6 +381,7 @@ export default class DashboardPlugin extends Plugin {
 
 class DashboardView extends ItemView {
   private plugin: DashboardPlugin;
+  private selectedCalendarDate = moment().format("YYYY-MM-DD");
   private pomodoroRemaining = 0;
   private pomodoroRunning = false;
   private pomodoroTimer?: number;
@@ -393,7 +431,7 @@ class DashboardView extends ItemView {
 
     this.renderDaily(grid, data);
     this.renderTasks(grid, data);
-    this.renderCalendar(grid, data);
+    await this.renderCalendar(grid, data);
     this.renderProjects(grid, data);
     this.renderLibrary(grid, "Articles", data.articles);
     this.renderLibrary(grid, "Books", data.books);
@@ -535,12 +573,13 @@ class DashboardView extends ItemView {
       });
     }
 
-    for (const heading of DAILY_TEMPLATE_SECTIONS) {
-      const section = sectionsByHeading.get(heading);
-      const item = card.createDiv({ cls: "dashboard-home__section-preview" });
-      item.createEl("h3", { text: heading });
-      item.createEl("p", { text: section?.preview || "暂无内容" });
-    }
+    const thoughtSection = sectionsByHeading.get("想法/思考");
+    const item = card.createDiv({ cls: "dashboard-home__section-preview" });
+    item.createEl("h3", { text: "想法/思考" });
+    item.createEl("p", {
+      cls: "dashboard-home__thought-content",
+      text: getSectionText(thoughtSection) || "暂无内容",
+    });
   }
 
   private renderTasks(root: HTMLElement, data: DashboardData) {
@@ -574,7 +613,7 @@ class DashboardView extends ItemView {
     }
   }
 
-  private renderCalendar(root: HTMLElement, data: DashboardData) {
+  private async renderCalendar(root: HTMLElement, data: DashboardData) {
     const card = createCard(root, "Calendar");
     const month = moment();
     const start = month.clone().startOf("month").startOf("week");
@@ -593,6 +632,7 @@ class DashboardView extends ItemView {
           "dashboard-home__calendar-day",
           day.month() === month.month() ? "" : "is-muted",
           iso === today ? "is-today" : "",
+          iso === this.selectedCalendarDate ? "is-selected" : "",
         ].join(" "),
       });
       cell.createEl("span", { text: day.format("D") });
@@ -601,11 +641,32 @@ class DashboardView extends ItemView {
         cell.createEl("small", { text: String(count) });
       }
       cell.addEventListener("click", async () => {
-        const file = await this.plugin.ensureDailyNote(
-          day.format(this.plugin.settings.dailyDateFormat),
-        );
-        await this.plugin.openFile(file);
+        this.selectedCalendarDate = iso;
+        await this.render();
       });
+    }
+
+    const todoPanel = card.createDiv({ cls: "dashboard-home__calendar-todos" });
+    todoPanel.createEl("h3", { text: `${this.selectedCalendarDate} · 今日todo` });
+
+    const selectedDate = moment(this.selectedCalendarDate).format(
+      this.plugin.settings.dailyDateFormat,
+    );
+    const dailyTodos = await this.plugin.getDailyTodoTasks(selectedDate);
+    if (dailyTodos.length === 0) {
+      todoPanel.createEl("p", { cls: "dashboard-home__muted", text: "暂无 todo" });
+      return;
+    }
+
+    for (const task of dailyTodos) {
+      const row = todoPanel.createDiv({ cls: "dashboard-home__calendar-todo" });
+      const checkbox = row.createEl("input", { attr: { type: "checkbox" } });
+      checkbox.checked = task.done;
+      checkbox.addEventListener("change", async () => {
+        await this.plugin.toggleTask(task);
+        await this.render();
+      });
+      row.createEl("span", { text: stripTaskMetadata(task.text) });
     }
   }
 
@@ -819,7 +880,19 @@ function toDailySection(section: { heading: string; lines: string[] }): DailySec
   return {
     heading: section.heading,
     preview,
+    lines: section.lines,
   };
+}
+
+function getSectionText(section: DailySection | undefined): string {
+  if (!section) {
+    return "";
+  }
+
+  return section.lines
+    .map((line) => line.trim())
+    .filter(Boolean)
+    .join("\n");
 }
 
 function extractTasks(content: string, file: TFile): DashboardTask[] {
@@ -844,6 +917,45 @@ function extractTasks(content: string, file: TFile): DashboardTask[] {
       };
     })
     .filter((task): task is DashboardTask => Boolean(task));
+}
+
+function extractTasksFromHeading(
+  content: string,
+  file: TFile,
+  heading: string,
+): DashboardTask[] {
+  const lines = content.split("\n");
+  const headingPattern = new RegExp(`^##\\s+${escapeRegExp(heading)}\\s*$`, "i");
+  const headingIndex = lines.findIndex((line) => headingPattern.test(line));
+  if (headingIndex === -1) {
+    return [];
+  }
+
+  const tasks: DashboardTask[] = [];
+  for (let index = headingIndex + 1; index < lines.length; index += 1) {
+    if (/^##\s+/.test(lines[index])) {
+      break;
+    }
+
+    const match = /^(\s*)-\s+\[( |x|X|-)\]\s+(.+)$/.exec(lines[index]);
+    if (!match) {
+      continue;
+    }
+
+    const text = match[3].trim();
+    tasks.push({
+      text,
+      done: match[2].toLowerCase() === "x",
+      due: extractDate(text),
+      file,
+      line: index,
+      tags: Array.from(text.matchAll(/#[\p{Letter}\p{Number}/_-]+/gu)).map(
+        (tag) => tag[0],
+      ),
+    });
+  }
+
+  return tasks;
 }
 
 function extractDate(text: string): string | undefined {
@@ -949,6 +1061,12 @@ function isInFolder(file: TFile, folder: string): boolean {
 
 function normalizeFolder(folder: string): string {
   return folder.trim().replace(/^\/+|\/+$/g, "");
+}
+
+function getFirstStaticDailyFolderSegment(folderTemplate: string): string | undefined {
+  return normalizeFolder(folderTemplate)
+    .split("/")
+    .find((segment) => segment && !isDateFolderSegment(segment));
 }
 
 function renderDailyFolder(
