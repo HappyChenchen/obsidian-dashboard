@@ -219,8 +219,7 @@ export default class DashboardPlugin extends Plugin {
       }
     }
 
-    const allOpenTasks = tasks
-      .filter((task) => !task.done)
+    const allOpenTasks = dedupeTasksByText(tasks.filter((task) => !task.done))
       .sort(compareTasksForDashboard);
 
     const calendarCounts = new Map<string, number>();
@@ -999,6 +998,36 @@ function getTasksForDate(
 
 function getTaskLocation(task: DashboardTask): string {
   return `${task.file.path}:${task.line}`;
+}
+
+function dedupeTasksByText(tasks: DashboardTask[]): DashboardTask[] {
+  const tasksByText = new Map<string, DashboardTask>();
+
+  for (const task of tasks) {
+    const key = normalizeTaskText(task.text);
+    const existing = tasksByText.get(key);
+    if (!existing || getTaskPriority(task) < getTaskPriority(existing)) {
+      tasksByText.set(key, task);
+    }
+  }
+
+  return Array.from(tasksByText.values());
+}
+
+function normalizeTaskText(text: string): string {
+  return stripTaskMetadata(text).replace(/\s+/g, " ").trim().toLowerCase();
+}
+
+function getTaskPriority(task: DashboardTask): number {
+  if (task.file.path.includes("/daily/") && task.file.basename.length === 10) {
+    return 0;
+  }
+
+  if (task.due) {
+    return 1;
+  }
+
+  return 2;
 }
 
 function extractDate(text: string): string | undefined {
