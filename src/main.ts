@@ -623,7 +623,7 @@ class DashboardView extends ItemView {
       const body = row.createDiv({ cls: "dashboard-home__task-body" });
       body.createEl("span", { text: stripTaskMetadata(task.text) });
       const meta = body.createEl("small", {
-        text: `${task.due ?? "No date"} · ${task.file.basename}`,
+        text: task.due ? `${task.due} · ${task.file.basename}` : task.file.basename,
       });
       meta.addEventListener("click", () => this.plugin.openFile(task.file));
     }
