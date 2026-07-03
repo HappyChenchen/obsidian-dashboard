@@ -223,13 +223,6 @@ export default class DashboardPlugin extends Plugin {
       .filter((task) => !task.done)
       .sort(compareTasksForDashboard);
 
-    const todayIso = moment(today, this.settings.dailyDateFormat, true).format("YYYY-MM-DD");
-    const todayTasks = getTasksForDate(
-      todayIso,
-      dailyTodosByDate.get(todayIso) ?? [],
-      allOpenTasks,
-    ).slice(0, 18);
-
     const calendarCounts = new Map<string, number>();
     const calendarDates = new Set<string>();
     for (const task of allOpenTasks) {
@@ -255,7 +248,7 @@ export default class DashboardPlugin extends Plugin {
       today,
       todayFile,
       dailySections,
-      tasks: todayTasks,
+      tasks: allOpenTasks.slice(0, 30),
       allTasks: allOpenTasks,
       calendarCounts,
       projects: projects.sort((a, b) => b.updated - a.updated).slice(0, 10),
@@ -607,12 +600,12 @@ class DashboardView extends ItemView {
   }
 
   private renderTasks(root: HTMLElement, data: DashboardData) {
-    const card = createCard(root, "今日todo");
+    const card = createCard(root, "Todo");
 
     if (data.tasks.length === 0) {
       card.createEl("p", {
         cls: "dashboard-home__muted",
-        text: "今天暂无 todo。",
+        text: "没有未完成 todo。",
       });
       return;
     }
