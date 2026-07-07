@@ -4,8 +4,11 @@
   --dashboard-surface: var(--background-secondary);
   --dashboard-surface-alt: var(--background-primary);
   --dashboard-text-muted: var(--text-muted);
+  box-sizing: border-box;
+  margin: 0 auto;
   max-width: 1380px;
-  padding: 28px;
+  padding: 28px 36px 28px 28px;
+  width: 100%;
 }
 
 .dashboard-home button {
@@ -165,6 +168,16 @@
   border-radius: 8px;
   min-height: 160px;
   padding: 14px;
+  transition: border-color 120ms ease, box-shadow 120ms ease, opacity 120ms ease;
+}
+
+.dashboard-home__card.is-dragging {
+  opacity: 0.55;
+}
+
+.dashboard-home__card.is-drop-target {
+  border-color: var(--dashboard-accent);
+  box-shadow: inset 0 0 0 1px var(--dashboard-accent);
 }
 
 .dashboard-home__card--is-todo {
@@ -191,9 +204,29 @@
   margin-bottom: 8px;
 }
 
+.dashboard-home__card-title-group {
+  align-items: center;
+  display: flex;
+  gap: 7px;
+  min-width: 0;
+}
+
 .dashboard-home__card-header h2 {
   font-size: 16px;
   margin: 0;
+}
+
+.dashboard-home__drag-handle {
+  color: var(--dashboard-text-muted);
+  cursor: grab;
+  font-size: 13px;
+  line-height: 1;
+  opacity: 0.58;
+  user-select: none;
+}
+
+.dashboard-home__card:active .dashboard-home__drag-handle {
+  cursor: grabbing;
 }
 
 .dashboard-home__card-header-actions {
@@ -568,7 +601,7 @@
 
 @media (max-width: 720px) {
   .dashboard-home {
-    padding: 16px;
+    padding: 16px 18px 16px 16px;
   }
 
   .dashboard-home__header {

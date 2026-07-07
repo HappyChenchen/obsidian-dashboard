@@ -1,5 +1,7 @@
 import type { TFile } from "obsidian";
 
+export type DashboardPanelId = "calendar" | "daily" | "todo" | "database" | "projects";
+
 export interface DashboardSettings {
   dailyFolder: string;
   dailyDateFormat: string;
@@ -9,6 +11,7 @@ export interface DashboardSettings {
   defaultTaskSection: string;
   pomodoroMinutes: number;
   openOnStartup: boolean;
+  panelOrder: DashboardPanelId[];
 }
 
 export interface DashboardTask {

@@ -11,6 +11,7 @@ import {
 } from "obsidian";
 import {
   DAILY_TEMPLATE_SECTIONS,
+  DEFAULT_PANEL_ORDER,
   DEFAULT_SETTINGS,
   VIEW_TYPE_DASHBOARD,
 } from "./constants";
@@ -38,6 +39,7 @@ import {
 } from "./tasks";
 import type {
   DashboardData,
+  DashboardPanelId,
   DashboardSettings,
   DashboardTask,
   LibraryItem,
@@ -104,11 +106,26 @@ export default class DashboardPlugin extends Plugin {
 
   async loadSettings() {
     this.settings = { ...DEFAULT_SETTINGS, ...(await this.loadData()) };
+    this.settings.panelOrder = normalizePanelOrder(this.settings.panelOrder);
   }
 
   async saveSettings() {
     await this.saveData(this.settings);
     this.refreshDashboardViews();
+  }
+
+  async movePanel(draggedPanelId: DashboardPanelId, targetPanelId: DashboardPanelId) {
+    if (draggedPanelId === targetPanelId) {
+      return;
+    }
+
+    const order = normalizePanelOrder(this.settings.panelOrder).filter(
+      (panelId) => panelId !== draggedPanelId,
+    );
+    const targetIndex = order.indexOf(targetPanelId);
+    order.splice(targetIndex === -1 ? order.length : targetIndex, 0, draggedPanelId);
+    this.settings.panelOrder = order;
+    await this.saveSettings();
   }
 
   async activateView() {
@@ -384,6 +401,7 @@ export default class DashboardPlugin extends Plugin {
 class DashboardView extends ItemView {
   private plugin: DashboardPlugin;
   private selectedCalendarDate = moment().format("YYYY-MM-DD");
+  private draggedPanelId?: DashboardPanelId;
   private pomodoroRemaining = 0;
   private pomodoroRunning = false;
   private pomodoroTimer?: number;
@@ -432,11 +450,37 @@ class DashboardView extends ItemView {
 
     const grid = root.createDiv({ cls: "dashboard-home__grid" });
 
-    await this.renderCalendar(grid, data);
-    this.renderDaily(grid, data);
-    this.renderTasks(grid, data);
-    this.renderDatabase(grid, data);
-    this.renderProjects(grid, data);
+    for (const panelId of normalizePanelOrder(this.plugin.settings.panelOrder)) {
+      await this.renderPanel(grid, data, panelId);
+    }
+  }
+
+  private async renderPanel(
+    root: HTMLElement,
+    data: DashboardData,
+    panelId: DashboardPanelId,
+  ) {
+    if (panelId === "calendar") {
+      await this.renderCalendar(root, data);
+      return;
+    }
+
+    if (panelId === "daily") {
+      this.renderDaily(root, data);
+      return;
+    }
+
+    if (panelId === "todo") {
+      this.renderTasks(root, data);
+      return;
+    }
+
+    if (panelId === "database") {
+      this.renderDatabase(root, data);
+      return;
+    }
+
+    this.renderProjects(root, data);
   }
 
   private renderHeader(root: HTMLElement, data: DashboardData) {
@@ -549,7 +593,7 @@ class DashboardView extends ItemView {
   }
 
   private renderDaily(root: HTMLElement, data: DashboardData) {
-    const card = createCard(root, "今日笔记", "is-daily", (actions) => {
+    const card = createCard(root, "今日笔记", "is-daily", "daily", this, (actions) => {
       const button = actions.createEl("button", {
         text: data.todayFile ? "打开" : "创建",
       });
@@ -639,7 +683,7 @@ class DashboardView extends ItemView {
   }
 
   private renderTasks(root: HTMLElement, data: DashboardData) {
-    const card = createCard(root, "TodoList", "is-todo");
+    const card = createCard(root, "TodoList", "is-todo", "todo", this);
 
     if (data.tasks.length === 0) {
       card.createEl("p", {
@@ -670,7 +714,7 @@ class DashboardView extends ItemView {
   }
 
   private async renderCalendar(root: HTMLElement, data: DashboardData) {
-    const card = createCard(root, "日历", "is-calendar");
+    const card = createCard(root, "日历", "is-calendar", "calendar", this);
     const month = moment();
     const start = month.clone().startOf("month").startOf("week");
     const today = moment().format("YYYY-MM-DD");
@@ -727,7 +771,7 @@ class DashboardView extends ItemView {
   }
 
   private renderProjects(root: HTMLElement, data: DashboardData) {
-    const card = createCard(root, "项目", "is-projects");
+    const card = createCard(root, "项目", "is-projects", "projects", this);
 
     if (data.projects.length === 0) {
       card.createEl("p", {
@@ -754,7 +798,7 @@ class DashboardView extends ItemView {
   }
 
   private renderDatabase(root: HTMLElement, data: DashboardData) {
-    const card = createCard(root, "数据库", "is-database");
+    const card = createCard(root, "数据库", "is-database", "database", this);
     const items = [...data.articles, ...data.books]
       .sort((a, b) => b.updated - a.updated)
       .slice(0, 10);
@@ -781,6 +825,53 @@ class DashboardView extends ItemView {
       row.createEl("span", { text: item.kind === "book" ? "书籍" : "文章" });
       row.createEl("small", { text: item.status });
     }
+  }
+
+  attachPanelDragHandlers(card: HTMLElement, panelId: DashboardPanelId) {
+    card.setAttr("draggable", "true");
+    card.setAttr("data-panel-id", panelId);
+
+    card.addEventListener("dragstart", (event) => {
+      this.draggedPanelId = panelId;
+      card.addClass("is-dragging");
+      event.dataTransfer?.setData("text/plain", panelId);
+      if (event.dataTransfer) {
+        event.dataTransfer.effectAllowed = "move";
+      }
+    });
+
+    card.addEventListener("dragend", () => {
+      this.draggedPanelId = undefined;
+      card.removeClass("is-dragging");
+      this.containerEl.findAll(".dashboard-home__card").forEach((element) => {
+        element.removeClass("is-drop-target");
+      });
+    });
+
+    card.addEventListener("dragover", (event) => {
+      if (!this.draggedPanelId || this.draggedPanelId === panelId) {
+        return;
+      }
+      event.preventDefault();
+      card.addClass("is-drop-target");
+      if (event.dataTransfer) {
+        event.dataTransfer.dropEffect = "move";
+      }
+    });
+
+    card.addEventListener("dragleave", () => {
+      card.removeClass("is-drop-target");
+    });
+
+    card.addEventListener("drop", async (event) => {
+      event.preventDefault();
+      card.removeClass("is-drop-target");
+      const draggedPanelId = this.draggedPanelId;
+      if (!draggedPanelId || draggedPanelId === panelId) {
+        return;
+      }
+      await this.plugin.movePanel(draggedPanelId, panelId);
+    });
   }
 
 }
@@ -902,12 +993,15 @@ class DashboardSettingTab extends PluginSettingTab {
         }),
       );
   }
+
 }
 
 function createCard(
   root: HTMLElement,
   title: string,
   variant?: string,
+  panelId?: DashboardPanelId,
+  view?: DashboardView,
   renderActions?: (root: HTMLElement) => void,
 ): HTMLElement {
   const card = root.createDiv({
@@ -916,12 +1010,38 @@ function createCard(
       .join(" "),
   });
   const header = card.createDiv({ cls: "dashboard-home__card-header" });
-  header.createEl("h2", { text: title });
+  const titleGroup = header.createDiv({ cls: "dashboard-home__card-title-group" });
+  if (panelId && view) {
+    titleGroup.createEl("span", {
+      cls: "dashboard-home__drag-handle",
+      text: "⋮⋮",
+      attr: { title: "Drag to reorder panel" },
+    });
+    view.attachPanelDragHandlers(card, panelId);
+  }
+  titleGroup.createEl("h2", { text: title });
   if (renderActions) {
     const actions = header.createDiv({ cls: "dashboard-home__card-header-actions" });
     renderActions(actions);
   }
   return card;
+}
+
+function normalizePanelOrder(panelOrder: unknown): DashboardPanelId[] {
+  const validPanelIds = new Set<DashboardPanelId>(DEFAULT_PANEL_ORDER);
+  const normalized = Array.isArray(panelOrder)
+    ? panelOrder.filter((panelId): panelId is DashboardPanelId =>
+        validPanelIds.has(panelId as DashboardPanelId),
+      )
+    : [];
+
+  for (const panelId of DEFAULT_PANEL_ORDER) {
+    if (!normalized.includes(panelId)) {
+      normalized.push(panelId);
+    }
+  }
+
+  return normalized;
 }
 
 function renderSummaryStat(root: HTMLElement, label: string, value: number) {
