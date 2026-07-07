@@ -568,11 +568,10 @@ class DashboardView extends ItemView {
       return;
     }
 
-    const path = card.createEl("button", {
-      cls: "dashboard-home__file-link",
+    card.createEl("p", {
+      cls: "dashboard-home__file-meta",
       text: data.todayFile.path,
     });
-    path.addEventListener("click", () => this.plugin.openFile(data.todayFile as TFile));
 
     const sectionsByHeading = new Map(
       data.dailySections.map((section) => [section.heading, section]),
@@ -632,12 +631,11 @@ class DashboardView extends ItemView {
 
     for (const thought of data.recentThoughts.slice(0, embedded ? 3 : 4)) {
       const item = container.createDiv({ cls: "dashboard-home__thought-item" });
+      item.addEventListener("click", () => this.plugin.openFile(thought.file));
       const heading = item.createDiv({ cls: "dashboard-home__thought-heading" });
-      heading.createEl("span", { text: thought.date });
-      heading.createEl("button", { text: thought.file.basename }).addEventListener(
-        "click",
-        () => this.plugin.openFile(thought.file),
-      );
+      heading.createEl("span", {
+        text: `${moment(thought.date).format("MM-DD")} · ${thought.file.basename}`,
+      });
       item.createEl("p", { text: truncateText(thought.text, 150) });
     }
   }

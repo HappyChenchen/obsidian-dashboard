@@ -194,17 +194,12 @@
   margin: -6px 0 8px;
 }
 
-.dashboard-home__file-link {
-  background: transparent;
-  border: 0;
+.dashboard-home__file-meta {
   color: var(--dashboard-text-muted);
-  display: block;
   font-size: 12px;
-  margin: -6px 0 10px;
-  min-height: 0;
+  line-height: 1.35;
+  margin: -4px 0 10px;
   overflow-wrap: anywhere;
-  padding: 0;
-  text-align: left;
 }
 
 .dashboard-home__template-button {
@@ -305,7 +300,16 @@
 
 .dashboard-home__thought-item {
   border-top: 1px solid var(--dashboard-border);
+  cursor: pointer;
+  margin: 0 -6px;
   padding: 10px 0;
+  padding-left: 6px;
+  padding-right: 6px;
+  transition: background 120ms ease;
+}
+
+.dashboard-home__thought-item:hover {
+  background: color-mix(in srgb, var(--dashboard-surface-alt), transparent 35%);
 }
 
 .dashboard-home__thought-item:first-of-type {
@@ -317,22 +321,12 @@
   align-items: center;
   display: flex;
   gap: 8px;
-  justify-content: space-between;
   margin-bottom: 4px;
 }
 
 .dashboard-home__thought-heading span {
   color: var(--dashboard-text-muted);
   font-size: 12px;
-}
-
-.dashboard-home__thought-heading button {
-  background: transparent;
-  border: 0;
-  color: var(--text-accent);
-  font-size: 12px;
-  min-height: 0;
-  padding: 0;
 }
 
 .dashboard-home__thought-item p {
