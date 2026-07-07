@@ -72,7 +72,7 @@ export function getTasksForDate(
   const tasksByLocation = new Map<string, DashboardTask>();
 
   for (const task of dailyTodos) {
-    if (!task.done) {
+    if (!task.done && (!task.due || task.due === date)) {
       tasksByLocation.set(getTaskLocation(task), task);
     }
   }
@@ -104,6 +104,8 @@ export function stripTaskMetadata(text: string): string {
   return text
     .replace(/(?:due|scheduled|start|date)::\s*\d{4}-\d{2}-\d{2}/gi, "")
     .replace(/[📅⏳🛫]\s*\d{4}-\d{2}-\d{2}/gu, "")
+    .replace(/\b\d{4}\d{2}\d{2}\b/g, "")
+    .replace(/\b\d{4}[-/.\s]+\d{1,2}[-/.\s]+\d{1,2}\b/g, "")
     .trim();
 }
 
@@ -129,7 +131,40 @@ function extractDate(text: string): string | undefined {
     /[📅⏳🛫]\s*(\d{4}-\d{2}-\d{2})/u.exec(text) ??
     /\b(\d{4}-\d{2}-\d{2})\b/.exec(text);
 
-  return explicit?.[1];
+  if (explicit?.[1]) {
+    return explicit[1];
+  }
+
+  const compact = /\b(\d{4})(\d{2})(\d{2})\b/.exec(text);
+  if (compact) {
+    return normalizeDateParts(compact[1], compact[2], compact[3]);
+  }
+
+  const loose = /\b(\d{4})[-/.\s]+(\d{1,2})[-/.\s]+(\d{1,2})\b/.exec(text);
+  if (loose) {
+    return normalizeDateParts(loose[1], loose[2], loose[3]);
+  }
+
+  return undefined;
+}
+
+function normalizeDateParts(
+  year: string,
+  month: string,
+  day: string,
+): string | undefined {
+  const monthNumber = Number(month);
+  const dayNumber = Number(day);
+  if (monthNumber < 1 || monthNumber > 12) {
+    return undefined;
+  }
+
+  const daysInMonth = new Date(Number(year), monthNumber, 0).getDate();
+  if (dayNumber < 1 || dayNumber > daysInMonth) {
+    return undefined;
+  }
+
+  return `${year}-${month.padStart(2, "0")}-${day.padStart(2, "0")}`;
 }
 
 function getTaskLocation(task: DashboardTask): string {
@@ -155,4 +190,3 @@ function getTaskPriority(task: DashboardTask): number {
 function escapeRegExp(value: string): string {
   return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
-

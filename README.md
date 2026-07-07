@@ -9,7 +9,7 @@ Dashboard Home is a personal Obsidian homepage plugin inspired by Notion dashboa
 - Main workbench panels can be dragged to reorder, and common sizes can be changed by dragging the bottom-right corner.
 - Today's note card shows section status instead of raw Markdown.
 - Recent inspirations are collected from daily `想法/思考` sections.
-- Quick Todo capture into today's daily note, with date parsing such as `2026 07 31 办手续` -> `办手续 📅 2026-07-31`.
+- Quick Todo capture into today's daily note, with date parsing such as `20260726 周末` or `2026 07 31 办手续` -> `办手续 📅 2026-07-31`.
 - Todo card shows all unfinished tasks across the vault.
 - Markdown task scan across the vault.
 - Mini calendar highlights dates; selecting a date shows that day's `今日todo` and vault tasks due on that date.

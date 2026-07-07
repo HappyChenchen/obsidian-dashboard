@@ -740,7 +740,7 @@ class DashboardView extends ItemView {
     }
 
     const todoPanel = card.createDiv({ cls: "dashboard-home__calendar-todos" });
-    todoPanel.createEl("h3", { text: `${this.selectedCalendarDate} · 今日todo` });
+    todoPanel.createEl("h3", { text: `${this.selectedCalendarDate} · Todo` });
 
     const dateTodos = await this.plugin.getTodosForDate(
       this.selectedCalendarDate,
@@ -761,7 +761,8 @@ class DashboardView extends ItemView {
       });
       const body = row.createDiv({ cls: "dashboard-home__calendar-todo-body" });
       body.createEl("span", { text: stripTaskMetadata(task.text) });
-      body.createEl("small", { text: task.file.basename }).addEventListener("click", () => {
+      const metaText = task.due ? task.due : `来源：${task.file.basename}`;
+      body.createEl("small", { text: metaText }).addEventListener("click", () => {
         this.plugin.openFile(task.file);
       });
     }
@@ -1173,9 +1174,11 @@ function buildQuickTaskLine(text: string): string | undefined {
     return undefined;
   }
 
-  const dateMatch = /(^|\s)(\d{4})[-/.\s]+(\d{1,2})[-/.\s]+(\d{1,2})(?=\s|$)/.exec(
-    cleanText,
-  );
+  const dateMatch =
+    /(^|[^\d])(\d{4})(\d{2})(\d{2})(?=[^\d]|$)/.exec(cleanText) ??
+    /(^|[^\d])(\d{4})[-/.\s]+(\d{1,2})[-/.\s]+(\d{1,2})(?=[^\d]|$)/.exec(
+      cleanText,
+    );
   if (!dateMatch) {
     return `- [ ] ${cleanText}`;
   }
