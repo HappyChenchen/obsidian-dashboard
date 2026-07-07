@@ -29,7 +29,6 @@ import {
   isProjectFile,
   renderDailyFolder,
 } from "./notes";
-import { buildDashboardSummary } from "./summary";
 import {
   compareTasksForDashboard,
   dedupeTasksByText,
@@ -226,7 +225,6 @@ export default class DashboardPlugin extends Plugin {
     const allOpenTasks = dedupeTasksByText(tasks.filter((task) => !task.done))
       .sort(compareTasksForDashboard);
 
-    const todayIso = moment(today, this.settings.dailyDateFormat, true).format("YYYY-MM-DD");
     const calendarCounts = new Map<string, number>();
     const calendarDates = new Set<string>();
     for (const task of allOpenTasks) {
@@ -254,12 +252,6 @@ export default class DashboardPlugin extends Plugin {
       dailySections,
       tasks: allOpenTasks.slice(0, 30),
       allTasks: allOpenTasks,
-      summary: buildDashboardSummary(
-        allOpenTasks,
-        projects,
-        [...articles, ...books],
-        todayIso,
-      ),
       calendarCounts,
       projects: projects.sort((a, b) => b.updated - a.updated).slice(0, 10),
       articles: articles.sort((a, b) => b.updated - a.updated).slice(0, 8),
@@ -464,7 +456,6 @@ class DashboardView extends ItemView {
     root.empty();
 
     this.renderHeader(root, data);
-    this.renderSummary(root, data);
 
     const quickRow = root.createDiv({ cls: "dashboard-home__quick-row" });
     this.renderQuickTask(quickRow);
@@ -523,22 +514,6 @@ class DashboardView extends ItemView {
 
     const refresh = actions.createEl("button", { text: "Refresh" });
     refresh.addEventListener("click", () => this.render());
-  }
-
-  private renderSummary(root: HTMLElement, data: DashboardData) {
-    const panel = root.createDiv({ cls: "dashboard-home__summary" });
-
-    const lead = panel.createDiv({ cls: "dashboard-home__summary-lead" });
-    lead.createEl("span", { text: "今日总览" });
-    lead.createEl("strong", { text: data.summary.recommendation });
-
-    const stats = panel.createDiv({ cls: "dashboard-home__summary-stats" });
-    renderSummaryStat(stats, "未完成", data.summary.openTasks);
-    renderSummaryStat(stats, "今日", data.summary.todayTasks);
-    renderSummaryStat(stats, "逾期", data.summary.overdueTasks);
-    renderSummaryStat(stats, "未来", data.summary.upcomingTasks);
-    renderSummaryStat(stats, "项目", data.summary.activeProjects);
-    renderSummaryStat(stats, "阅读", data.summary.readingItems);
   }
 
   private renderQuickTask(root: HTMLElement) {
@@ -1190,12 +1165,6 @@ function applyPanelSizeClass(card: HTMLElement, size: DashboardPanelSize) {
 
 function getPanelSizeClass(size: DashboardPanelSize): string {
   return `dashboard-home__card--size-${size}`;
-}
-
-function renderSummaryStat(root: HTMLElement, label: string, value: number) {
-  const stat = root.createDiv({ cls: "dashboard-home__summary-stat" });
-  stat.createEl("strong", { text: String(value) });
-  stat.createEl("span", { text: label });
 }
 
 function truncateText(text: string, maxLength: number): string {

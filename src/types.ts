@@ -54,24 +54,12 @@ export interface RecentThought {
   updated: number;
 }
 
-export interface DashboardSummary {
-  openTasks: number;
-  overdueTasks: number;
-  todayTasks: number;
-  upcomingTasks: number;
-  undatedTasks: number;
-  activeProjects: number;
-  readingItems: number;
-  recommendation: string;
-}
-
 export interface DashboardData {
   today: string;
   todayFile?: TFile;
   dailySections: DailySection[];
   tasks: DashboardTask[];
   allTasks: DashboardTask[];
-  summary: DashboardSummary;
   calendarCounts: Map<string, number>;
   projects: ProjectSummary[];
   articles: LibraryItem[];

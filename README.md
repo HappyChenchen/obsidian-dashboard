@@ -5,7 +5,6 @@ Dashboard Home is a personal Obsidian homepage plugin inspired by Notion dashboa
 ## Current MVP
 
 - Custom dashboard view with ribbon icon and command.
-- Overview summary for unfinished tasks, overdue work, projects, and reading.
 - Workbench layout: calendar, today's note with recent inspirations, TodoList, database, and projects.
 - Main workbench panels can be dragged to reorder, and common sizes can be changed by dragging the bottom-right corner.
 - Today's note card shows section status instead of raw Markdown.
