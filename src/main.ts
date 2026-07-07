@@ -434,7 +434,6 @@ class DashboardView extends ItemView {
 
     await this.renderCalendar(grid, data);
     this.renderDaily(grid, data);
-    this.renderRecentThoughts(grid, data);
     this.renderTasks(grid, data);
     this.renderDatabase(grid, data);
     this.renderProjects(grid, data);
@@ -613,18 +612,26 @@ class DashboardView extends ItemView {
     actions.createEl("button", { text: "打开今日笔记" }).addEventListener("click", () => {
       this.plugin.openFile(data.todayFile as TFile);
     });
+
+    this.renderRecentThoughts(card, data, true);
   }
 
-  private renderRecentThoughts(root: HTMLElement, data: DashboardData) {
-    const card = createCard(root, "近期灵感", "is-thoughts");
+  private renderRecentThoughts(root: HTMLElement, data: DashboardData, embedded = false) {
+    const container = embedded
+      ? root.createDiv({ cls: "dashboard-home__embedded-thoughts" })
+      : createCard(root, "近期灵感", "is-thoughts");
+
+    if (embedded) {
+      container.createEl("h3", { text: "近期灵感" });
+    }
 
     if (data.recentThoughts.length === 0) {
-      card.createEl("p", { cls: "dashboard-home__muted", text: "还没有想法/思考记录。" });
+      container.createEl("p", { cls: "dashboard-home__muted", text: "还没有想法/思考记录。" });
       return;
     }
 
-    for (const thought of data.recentThoughts.slice(0, 4)) {
-      const item = card.createDiv({ cls: "dashboard-home__thought-item" });
+    for (const thought of data.recentThoughts.slice(0, embedded ? 3 : 4)) {
+      const item = container.createDiv({ cls: "dashboard-home__thought-item" });
       const heading = item.createDiv({ cls: "dashboard-home__thought-heading" });
       heading.createEl("span", { text: thought.date });
       heading.createEl("button", { text: thought.file.basename }).addEventListener(
