@@ -42,6 +42,13 @@ export interface LibraryItem {
   updated: number;
 }
 
+export interface RecentThought {
+  date: string;
+  text: string;
+  file: TFile;
+  updated: number;
+}
+
 export interface DashboardSummary {
   openTasks: number;
   overdueTasks: number;
@@ -64,5 +71,5 @@ export interface DashboardData {
   projects: ProjectSummary[];
   articles: LibraryItem[];
   books: LibraryItem[];
+  recentThoughts: RecentThought[];
 }
-

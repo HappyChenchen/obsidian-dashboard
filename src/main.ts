@@ -42,6 +42,7 @@ import type {
   DashboardTask,
   LibraryItem,
   ProjectSummary,
+  RecentThought,
 } from "./types";
 
 export default class DashboardPlugin extends Plugin {
@@ -149,6 +150,7 @@ export default class DashboardPlugin extends Plugin {
     const projects: ProjectSummary[] = [];
     const articles: LibraryItem[] = [];
     const books: LibraryItem[] = [];
+    const recentThoughts: RecentThought[] = [];
 
     for (const file of files) {
       const content = await this.app.vault.cachedRead(file);
@@ -159,12 +161,25 @@ export default class DashboardPlugin extends Plugin {
 
       const dailyDate = this.getDateFromDailyFile(file);
       if (dailyDate) {
+        const dailySectionsForFile = extractDailySections(content);
         const dailyTodos = extractTasksFromHeading(
           content,
           file,
           this.settings.defaultTaskSection,
         ).filter((task) => !task.done);
         dailyTodosByDate.set(dailyDate, dailyTodos);
+
+        const thoughtText = getSectionText(
+          dailySectionsForFile.find((section) => section.heading === "想法/思考"),
+        );
+        if (thoughtText) {
+          recentThoughts.push({
+            date: dailyDate,
+            text: thoughtText,
+            file,
+            updated: file.stat.mtime,
+          });
+        }
       }
 
       if (isProjectFile(file, frontmatter, this.settings.projectFolder)) {
@@ -221,6 +236,9 @@ export default class DashboardPlugin extends Plugin {
       projects: projects.sort((a, b) => b.updated - a.updated).slice(0, 10),
       articles: articles.sort((a, b) => b.updated - a.updated).slice(0, 8),
       books: books.sort((a, b) => b.updated - a.updated).slice(0, 8),
+      recentThoughts: recentThoughts
+        .sort((a, b) => b.date.localeCompare(a.date) || b.updated - a.updated)
+        .slice(0, 6),
     };
   }
 
@@ -414,12 +432,12 @@ class DashboardView extends ItemView {
 
     const grid = root.createDiv({ cls: "dashboard-home__grid" });
 
-    this.renderDaily(grid, data);
-    this.renderTasks(grid, data);
     await this.renderCalendar(grid, data);
+    this.renderDaily(grid, data);
+    this.renderRecentThoughts(grid, data);
+    this.renderTasks(grid, data);
+    this.renderDatabase(grid, data);
     this.renderProjects(grid, data);
-    this.renderLibrary(grid, "Articles", data.articles);
-    this.renderLibrary(grid, "Books", data.books);
   }
 
   private renderHeader(root: HTMLElement, data: DashboardData) {
@@ -429,7 +447,7 @@ class DashboardView extends ItemView {
       cls: "dashboard-home__eyebrow",
       text: moment().format("dddd, MMMM D"),
     });
-    titleBlock.createEl("h1", { text: "my life" });
+    titleBlock.createEl("h1", { text: "My notes" });
 
     const actions = header.createDiv({ cls: "dashboard-home__actions" });
     const openDaily = actions.createEl("button", { text: "Open daily" });
@@ -532,14 +550,18 @@ class DashboardView extends ItemView {
   }
 
   private renderDaily(root: HTMLElement, data: DashboardData) {
-    const card = createCard(root, data.today, "is-daily");
+    const card = createCard(root, "今日笔记", "is-daily");
+    card.createEl("p", {
+      cls: "dashboard-home__card-kicker",
+      text: moment(data.today, this.plugin.settings.dailyDateFormat).format("YYYY-MM-DD"),
+    });
 
     if (!data.todayFile) {
       card.createEl("p", {
         cls: "dashboard-home__muted",
-        text: "No daily note yet.",
+        text: "今天还没有笔记。",
       });
-      const button = card.createEl("button", { text: "Create daily note" });
+      const button = card.createEl("button", { text: "创建今日笔记" });
       button.addEventListener("click", async () => {
         const file = await this.plugin.ensureDailyNote(data.today);
         await this.plugin.openFile(file);
@@ -574,17 +596,47 @@ class DashboardView extends ItemView {
       });
     }
 
-    const thoughtSection = sectionsByHeading.get("想法/思考");
-    const item = card.createDiv({ cls: "dashboard-home__section-preview" });
-    item.createEl("h3", { text: "想法/思考" });
-    item.createEl("p", {
-      cls: "dashboard-home__thought-content",
-      text: getSectionText(thoughtSection) || "暂无内容",
+    const statusGrid = card.createDiv({ cls: "dashboard-home__daily-status" });
+    for (const heading of DAILY_TEMPLATE_SECTIONS) {
+      const sectionText = getSectionText(sectionsByHeading.get(heading));
+      const item = statusGrid.createDiv({
+        cls: [
+          "dashboard-home__daily-status-item",
+          sectionText ? "has-content" : "is-empty",
+        ].join(" "),
+      });
+      item.createEl("span", { text: heading });
+      item.createEl("strong", { text: sectionText ? "已记录" : "待补充" });
+    }
+
+    const actions = card.createDiv({ cls: "dashboard-home__card-actions" });
+    actions.createEl("button", { text: "打开今日笔记" }).addEventListener("click", () => {
+      this.plugin.openFile(data.todayFile as TFile);
     });
   }
 
+  private renderRecentThoughts(root: HTMLElement, data: DashboardData) {
+    const card = createCard(root, "近期灵感", "is-thoughts");
+
+    if (data.recentThoughts.length === 0) {
+      card.createEl("p", { cls: "dashboard-home__muted", text: "还没有想法/思考记录。" });
+      return;
+    }
+
+    for (const thought of data.recentThoughts.slice(0, 4)) {
+      const item = card.createDiv({ cls: "dashboard-home__thought-item" });
+      const heading = item.createDiv({ cls: "dashboard-home__thought-heading" });
+      heading.createEl("span", { text: thought.date });
+      heading.createEl("button", { text: thought.file.basename }).addEventListener(
+        "click",
+        () => this.plugin.openFile(thought.file),
+      );
+      item.createEl("p", { text: truncateText(thought.text, 150) });
+    }
+  }
+
   private renderTasks(root: HTMLElement, data: DashboardData) {
-    const card = createCard(root, "Todo", "is-todo");
+    const card = createCard(root, "TodoList", "is-todo");
 
     if (data.tasks.length === 0) {
       card.createEl("p", {
@@ -615,7 +667,7 @@ class DashboardView extends ItemView {
   }
 
   private async renderCalendar(root: HTMLElement, data: DashboardData) {
-    const card = createCard(root, "Calendar", "is-calendar");
+    const card = createCard(root, "日历", "is-calendar");
     const month = moment();
     const start = month.clone().startOf("month").startOf("week");
     const today = moment().format("YYYY-MM-DD");
@@ -672,7 +724,7 @@ class DashboardView extends ItemView {
   }
 
   private renderProjects(root: HTMLElement, data: DashboardData) {
-    const card = createCard(root, "Projects", "is-projects");
+    const card = createCard(root, "项目", "is-projects");
 
     if (data.projects.length === 0) {
       card.createEl("p", {
@@ -698,25 +750,36 @@ class DashboardView extends ItemView {
     }
   }
 
-  private renderLibrary(root: HTMLElement, title: string, items: LibraryItem[]) {
-    const card = createCard(root, title, "is-library");
+  private renderDatabase(root: HTMLElement, data: DashboardData) {
+    const card = createCard(root, "数据库", "is-database");
+    const items = [...data.articles, ...data.books]
+      .sort((a, b) => b.updated - a.updated)
+      .slice(0, 10);
 
     if (items.length === 0) {
       card.createEl("p", {
         cls: "dashboard-home__muted",
-        text: `No ${title.toLowerCase()} found.`,
+        text: "还没有文章或读书笔记。",
       });
       return;
     }
 
+    const table = card.createDiv({ cls: "dashboard-home__database" });
+    const header = table.createDiv({ cls: "dashboard-home__database-row is-header" });
+    header.createEl("span", { text: "名称" });
+    header.createEl("span", { text: "类型" });
+    header.createEl("span", { text: "状态" });
+
     for (const item of items) {
-      const row = card.createDiv({ cls: "dashboard-home__library-item" });
+      const row = table.createDiv({ cls: "dashboard-home__database-row" });
       row.createEl("button", { text: item.title }).addEventListener("click", () => {
         this.plugin.openFile(item.file);
       });
+      row.createEl("span", { text: item.kind === "book" ? "书籍" : "文章" });
       row.createEl("small", { text: item.status });
     }
   }
+
 }
 
 class DashboardSettingTab extends PluginSettingTab {
@@ -852,4 +915,13 @@ function renderSummaryStat(root: HTMLElement, label: string, value: number) {
   const stat = root.createDiv({ cls: "dashboard-home__summary-stat" });
   stat.createEl("strong", { text: String(value) });
   stat.createEl("span", { text: label });
+}
+
+function truncateText(text: string, maxLength: number): string {
+  const normalized = text.replace(/\s+/g, " ").trim();
+  if (normalized.length <= maxLength) {
+    return normalized;
+  }
+
+  return `${normalized.slice(0, maxLength - 1)}…`;
 }
