@@ -5,7 +5,8 @@
   "main": "main.js",
   "scripts": {
     "dev": "node esbuild.config.mjs",
-    "build": "tsc -noEmit -skipLibCheck && node esbuild.config.mjs production"
+    "build": "tsc -noEmit -skipLibCheck && node esbuild.config.mjs production",
+    "install:local": "npm run build && node scripts/install-local.mjs"
   },
   "keywords": [
     "obsidian",
@@ -24,4 +25,3 @@
     "typescript": "^5.8.0"
   }
 }
-

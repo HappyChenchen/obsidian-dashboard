@@ -84,7 +84,19 @@ npm install
 npm run build
 ```
 
-For local Obsidian testing, copy `main.js`, `manifest.json`, and `styles.css` into:
+For local Obsidian testing, install the built plugin into the default vault:
+
+```sh
+npm run install:local
+```
+
+Set `OBSIDIAN_VAULT` to install into another vault:
+
+```sh
+OBSIDIAN_VAULT="/path/to/vault" npm run install:local
+```
+
+Manual install still only requires `main.js`, `manifest.json`, and `styles.css` in:
 
 ```text
 <vault>/.obsidian/plugins/dashboard-home/

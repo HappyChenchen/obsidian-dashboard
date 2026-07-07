@@ -1,0 +1,68 @@
+import type { TFile } from "obsidian";
+
+export interface DashboardSettings {
+  dailyFolder: string;
+  dailyDateFormat: string;
+  projectFolder: string;
+  articleFolder: string;
+  bookFolder: string;
+  defaultTaskSection: string;
+  pomodoroMinutes: number;
+  openOnStartup: boolean;
+}
+
+export interface DashboardTask {
+  text: string;
+  done: boolean;
+  due?: string;
+  file: TFile;
+  line: number;
+  tags: string[];
+}
+
+export interface DailySection {
+  heading: string;
+  preview: string;
+  lines: string[];
+}
+
+export interface ProjectSummary {
+  title: string;
+  file: TFile;
+  status: string;
+  progress: number;
+  updated: number;
+}
+
+export interface LibraryItem {
+  title: string;
+  file: TFile;
+  kind: "article" | "book";
+  status: string;
+  updated: number;
+}
+
+export interface DashboardSummary {
+  openTasks: number;
+  overdueTasks: number;
+  todayTasks: number;
+  upcomingTasks: number;
+  undatedTasks: number;
+  activeProjects: number;
+  readingItems: number;
+  recommendation: string;
+}
+
+export interface DashboardData {
+  today: string;
+  todayFile?: TFile;
+  dailySections: DailySection[];
+  tasks: DashboardTask[];
+  allTasks: DashboardTask[];
+  summary: DashboardSummary;
+  calendarCounts: Map<string, number>;
+  projects: ProjectSummary[];
+  articles: LibraryItem[];
+  books: LibraryItem[];
+}
+
