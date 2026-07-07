@@ -1,7 +1,6 @@
 import {
   App,
   ItemView,
-  Menu,
   Notice,
   Plugin,
   PluginSettingTab,
@@ -9,7 +8,6 @@ import {
   TFile,
   WorkspaceLeaf,
   moment,
-  setIcon,
 } from "obsidian";
 import {
   DAILY_TEMPLATE_SECTIONS,
@@ -454,31 +452,6 @@ class DashboardView extends ItemView {
 
   getPanelSize(panelId: DashboardPanelId): DashboardPanelSize {
     return normalizePanelSizes(this.plugin.settings.panelSizes)[panelId];
-  }
-
-  openPanelSizeMenu(event: MouseEvent, panelId: DashboardPanelId) {
-    const currentSize = this.getPanelSize(panelId);
-    const menu = new Menu();
-    const sizes: Array<[DashboardPanelSize, string]> = [
-      ["compact", "紧凑"],
-      ["normal", "标准"],
-      ["wide", "加宽"],
-      ["tall", "加高"],
-      ["large", "大面板"],
-    ];
-
-    for (const [size, label] of sizes) {
-      menu.addItem((item) =>
-        item
-          .setTitle(label)
-          .setChecked(size === currentSize)
-          .onClick(async () => {
-            await this.plugin.resizePanel(panelId, size);
-          }),
-      );
-    }
-
-    menu.showAtMouseEvent(event);
   }
 
   async render() {
@@ -1120,35 +1093,17 @@ function createCard(
   });
   const header = card.createDiv({ cls: "dashboard-home__card-header" });
   const titleGroup = header.createDiv({ cls: "dashboard-home__card-title-group" });
-  if (panelId && view) {
-    const dragHandle = titleGroup.createEl("button", {
-      cls: "dashboard-home__drag-handle",
-      attr: { title: "拖拽排序", "aria-label": "拖拽排序", type: "button" },
-    });
-    setIcon(dragHandle, "grip");
-    view.attachPanelDragHandlers(card, panelId, dragHandle);
-  }
   titleGroup.createEl("h2", { text: title });
+  if (panelId && view) {
+    view.attachPanelDragHandlers(card, panelId, header);
+  }
   const actions = header.createDiv({ cls: "dashboard-home__card-header-actions" });
   if (renderActions) {
     renderActions(actions);
   }
   if (panelId && view) {
-    const sizeButton = actions.createEl("button", {
-      cls: "dashboard-home__panel-size-button",
-      attr: { title: "调整面板尺寸", "aria-label": "调整面板尺寸", type: "button" },
-    });
-    setIcon(sizeButton, "maximize-2");
-    sizeButton.addEventListener("click", (event) => {
-      event.preventDefault();
-      event.stopPropagation();
-      view.openPanelSizeMenu(event, panelId);
-    });
-  }
-  if (panelId && view) {
     const resizeHandle = card.createDiv({
       cls: "dashboard-home__resize-handle",
-      attr: { title: "拖拽调整尺寸" },
     });
     view.attachPanelResizeHandlers(card, panelId, resizeHandle);
   }
