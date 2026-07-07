@@ -60,12 +60,24 @@ interface LibraryItem {
   updated: number;
 }
 
+interface DashboardSummary {
+  openTasks: number;
+  overdueTasks: number;
+  todayTasks: number;
+  upcomingTasks: number;
+  undatedTasks: number;
+  activeProjects: number;
+  readingItems: number;
+  recommendation: string;
+}
+
 interface DashboardData {
   today: string;
   todayFile?: TFile;
   dailySections: DailySection[];
   tasks: DashboardTask[];
   allTasks: DashboardTask[];
+  summary: DashboardSummary;
   calendarCounts: Map<string, number>;
   projects: ProjectSummary[];
   articles: LibraryItem[];
@@ -222,6 +234,7 @@ export default class DashboardPlugin extends Plugin {
     const allOpenTasks = dedupeTasksByText(tasks.filter((task) => !task.done))
       .sort(compareTasksForDashboard);
 
+    const todayIso = moment(today, this.settings.dailyDateFormat, true).format("YYYY-MM-DD");
     const calendarCounts = new Map<string, number>();
     const calendarDates = new Set<string>();
     for (const task of allOpenTasks) {
@@ -249,6 +262,12 @@ export default class DashboardPlugin extends Plugin {
       dailySections,
       tasks: allOpenTasks.slice(0, 30),
       allTasks: allOpenTasks,
+      summary: buildDashboardSummary(
+        allOpenTasks,
+        projects,
+        [...articles, ...books],
+        todayIso,
+      ),
       calendarCounts,
       projects: projects.sort((a, b) => b.updated - a.updated).slice(0, 10),
       articles: articles.sort((a, b) => b.updated - a.updated).slice(0, 8),
@@ -438,6 +457,7 @@ class DashboardView extends ItemView {
     root.empty();
 
     this.renderHeader(root, data);
+    this.renderSummary(root, data);
 
     const quickRow = root.createDiv({ cls: "dashboard-home__quick-row" });
     this.renderQuickTask(quickRow);
@@ -471,6 +491,22 @@ class DashboardView extends ItemView {
 
     const refresh = actions.createEl("button", { text: "Refresh" });
     refresh.addEventListener("click", () => this.render());
+  }
+
+  private renderSummary(root: HTMLElement, data: DashboardData) {
+    const panel = root.createDiv({ cls: "dashboard-home__summary" });
+
+    const lead = panel.createDiv({ cls: "dashboard-home__summary-lead" });
+    lead.createEl("span", { text: "今日总览" });
+    lead.createEl("strong", { text: data.summary.recommendation });
+
+    const stats = panel.createDiv({ cls: "dashboard-home__summary-stats" });
+    renderSummaryStat(stats, "未完成", data.summary.openTasks);
+    renderSummaryStat(stats, "今日", data.summary.todayTasks);
+    renderSummaryStat(stats, "逾期", data.summary.overdueTasks);
+    renderSummaryStat(stats, "未来", data.summary.upcomingTasks);
+    renderSummaryStat(stats, "项目", data.summary.activeProjects);
+    renderSummaryStat(stats, "阅读", data.summary.readingItems);
   }
 
   private renderQuickTask(root: HTMLElement) {
@@ -547,7 +583,7 @@ class DashboardView extends ItemView {
   }
 
   private renderDaily(root: HTMLElement, data: DashboardData) {
-    const card = createCard(root, data.today);
+    const card = createCard(root, data.today, "is-daily");
 
     if (!data.todayFile) {
       card.createEl("p", {
@@ -599,7 +635,7 @@ class DashboardView extends ItemView {
   }
 
   private renderTasks(root: HTMLElement, data: DashboardData) {
-    const card = createCard(root, "Todo");
+    const card = createCard(root, "Todo", "is-todo");
 
     if (data.tasks.length === 0) {
       card.createEl("p", {
@@ -630,7 +666,7 @@ class DashboardView extends ItemView {
   }
 
   private async renderCalendar(root: HTMLElement, data: DashboardData) {
-    const card = createCard(root, "Calendar");
+    const card = createCard(root, "Calendar", "is-calendar");
     const month = moment();
     const start = month.clone().startOf("month").startOf("week");
     const today = moment().format("YYYY-MM-DD");
@@ -687,7 +723,7 @@ class DashboardView extends ItemView {
   }
 
   private renderProjects(root: HTMLElement, data: DashboardData) {
-    const card = createCard(root, "Projects");
+    const card = createCard(root, "Projects", "is-projects");
 
     if (data.projects.length === 0) {
       card.createEl("p", {
@@ -714,7 +750,7 @@ class DashboardView extends ItemView {
   }
 
   private renderLibrary(root: HTMLElement, title: string, items: LibraryItem[]) {
-    const card = createCard(root, title);
+    const card = createCard(root, title, "is-library");
 
     if (items.length === 0) {
       card.createEl("p", {
@@ -853,10 +889,85 @@ class DashboardSettingTab extends PluginSettingTab {
   }
 }
 
-function createCard(root: HTMLElement, title: string): HTMLElement {
-  const card = root.createDiv({ cls: "dashboard-home__card" });
+function createCard(root: HTMLElement, title: string, variant?: string): HTMLElement {
+  const card = root.createDiv({
+    cls: ["dashboard-home__card", variant ? `dashboard-home__card--${variant}` : ""]
+      .filter(Boolean)
+      .join(" "),
+  });
   card.createEl("h2", { text: title });
   return card;
+}
+
+function renderSummaryStat(root: HTMLElement, label: string, value: number) {
+  const stat = root.createDiv({ cls: "dashboard-home__summary-stat" });
+  stat.createEl("strong", { text: String(value) });
+  stat.createEl("span", { text: label });
+}
+
+function buildDashboardSummary(
+  openTasks: DashboardTask[],
+  projects: ProjectSummary[],
+  libraryItems: LibraryItem[],
+  today: string,
+): DashboardSummary {
+  const overdueTasks = openTasks.filter((task) => task.due && task.due < today).length;
+  const todayTasks = openTasks.filter((task) => task.due === today).length;
+  const upcomingTasks = openTasks.filter((task) => task.due && task.due > today).length;
+  const undatedTasks = openTasks.filter((task) => !task.due).length;
+  const activeProjects = projects.filter(
+    (project) => !["done", "archived", "completed"].includes(project.status.toLowerCase()),
+  ).length;
+  const readingItems = libraryItems.filter(
+    (item) => !["done", "archived", "finished"].includes(item.status.toLowerCase()),
+  ).length;
+
+  return {
+    openTasks: openTasks.length,
+    overdueTasks,
+    todayTasks,
+    upcomingTasks,
+    undatedTasks,
+    activeProjects,
+    readingItems,
+    recommendation: buildRecommendation({
+      openTasks: openTasks.length,
+      overdueTasks,
+      todayTasks,
+      upcomingTasks,
+      undatedTasks,
+      activeProjects,
+      readingItems,
+    }),
+  };
+}
+
+function buildRecommendation(summary: Omit<DashboardSummary, "recommendation">): string {
+  if (summary.overdueTasks > 0) {
+    return `先处理 ${summary.overdueTasks} 个逾期待办。`;
+  }
+
+  if (summary.todayTasks > 0) {
+    return `今天有 ${summary.todayTasks} 个带日期待办。`;
+  }
+
+  if (summary.openTasks > 8) {
+    return `未完成待办偏多，适合先收敛到 3 件。`;
+  }
+
+  if (summary.undatedTasks > 0) {
+    return `可以给关键待办补上日期。`;
+  }
+
+  if (summary.activeProjects > 0) {
+    return `挑一个项目推进一点点。`;
+  }
+
+  if (summary.readingItems > 0) {
+    return `今天适合补一条读书笔记。`;
+  }
+
+  return "今天很清爽，可以写一点想法。";
 }
 
 function extractDailySections(content: string): DailySection[] {

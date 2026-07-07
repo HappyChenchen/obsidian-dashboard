@@ -4,6 +4,7 @@
   --dashboard-surface: var(--background-secondary);
   --dashboard-surface-alt: var(--background-primary);
   --dashboard-text-muted: var(--text-muted);
+  max-width: 1380px;
   padding: 28px;
 }
 
@@ -30,7 +31,7 @@
   display: flex;
   gap: 16px;
   justify-content: space-between;
-  margin-bottom: 18px;
+  margin-bottom: 14px;
 }
 
 .dashboard-home__header h1 {
@@ -50,6 +51,61 @@
 .dashboard-home__actions {
   display: flex;
   gap: 8px;
+}
+
+.dashboard-home__summary {
+  align-items: stretch;
+  background: var(--dashboard-surface);
+  border: 1px solid var(--dashboard-border);
+  border-left: 3px solid var(--dashboard-accent);
+  border-radius: 8px;
+  display: grid;
+  gap: 12px;
+  grid-template-columns: minmax(220px, 1fr) minmax(0, 2fr);
+  margin-bottom: 14px;
+  padding: 12px;
+}
+
+.dashboard-home__summary-lead {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  justify-content: center;
+  min-width: 0;
+}
+
+.dashboard-home__summary-lead span,
+.dashboard-home__summary-stat span {
+  color: var(--dashboard-text-muted);
+  font-size: 12px;
+}
+
+.dashboard-home__summary-lead strong {
+  font-size: 16px;
+  line-height: 1.35;
+}
+
+.dashboard-home__summary-stats {
+  display: grid;
+  gap: 8px;
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+}
+
+.dashboard-home__summary-stat {
+  background: var(--dashboard-surface-alt);
+  border: 1px solid var(--dashboard-border);
+  border-radius: 6px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  justify-content: center;
+  min-height: 54px;
+  padding: 8px;
+}
+
+.dashboard-home__summary-stat strong {
+  font-size: 20px;
+  line-height: 1;
 }
 
 .dashboard-home__quick-row {
@@ -100,7 +156,7 @@
 .dashboard-home__grid {
   display: grid;
   gap: 14px;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: minmax(280px, 1.1fr) minmax(320px, 1.35fr) minmax(280px, 1fr);
 }
 
 .dashboard-home__card {
@@ -109,6 +165,14 @@
   border-radius: 8px;
   min-height: 160px;
   padding: 14px;
+}
+
+.dashboard-home__card--is-todo {
+  grid-row: span 2;
+}
+
+.dashboard-home__card--is-calendar {
+  min-height: 300px;
 }
 
 .dashboard-home__card h2 {
@@ -335,6 +399,14 @@
   .dashboard-home__grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
+
+  .dashboard-home__summary {
+    grid-template-columns: 1fr;
+  }
+
+  .dashboard-home__summary-stats {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
 }
 
 @media (max-width: 720px) {
@@ -350,6 +422,10 @@
   .dashboard-home__quick-row,
   .dashboard-home__grid {
     grid-template-columns: 1fr;
+  }
+
+  .dashboard-home__summary-stats {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
   .dashboard-home__pomodoro {
