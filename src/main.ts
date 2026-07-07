@@ -331,8 +331,8 @@ export default class DashboardPlugin extends Plugin {
   }
 
   async appendTaskToToday(text: string) {
-    const cleanText = text.trim();
-    if (!cleanText) {
+    const taskLine = buildQuickTaskLine(text);
+    if (!taskLine) {
       return;
     }
 
@@ -341,7 +341,7 @@ export default class DashboardPlugin extends Plugin {
     const nextContent = appendLineUnderHeading(
       content,
       this.settings.defaultTaskSection,
-      `- [ ] ${cleanText}`,
+      taskLine,
     );
     await this.app.vault.modify(file, nextContent);
     new Notice("Task added to today's daily note.");
@@ -521,7 +521,7 @@ class DashboardView extends ItemView {
     const input = panel.createEl("input", {
       attr: {
         type: "text",
-        placeholder: "记录今日 todo，例如：整理项目计划 2026-07-03",
+        placeholder: "记录 Todo，例如：2026 07 31 办手续",
       },
     });
     const button = panel.createEl("button", { text: "添加" });
@@ -1165,6 +1165,38 @@ function applyPanelSizeClass(card: HTMLElement, size: DashboardPanelSize) {
 
 function getPanelSizeClass(size: DashboardPanelSize): string {
   return `dashboard-home__card--size-${size}`;
+}
+
+function buildQuickTaskLine(text: string): string | undefined {
+  const cleanText = text.trim().replace(/\s+/g, " ");
+  if (!cleanText) {
+    return undefined;
+  }
+
+  const dateMatch = /(^|\s)(\d{4})[-/.\s]+(\d{1,2})[-/.\s]+(\d{1,2})(?=\s|$)/.exec(
+    cleanText,
+  );
+  if (!dateMatch) {
+    return `- [ ] ${cleanText}`;
+  }
+
+  const [, prefix, year, month, day] = dateMatch;
+  const dueDate = moment(
+    `${year}-${month.padStart(2, "0")}-${day.padStart(2, "0")}`,
+    "YYYY-MM-DD",
+    true,
+  );
+  const dateStart = dateMatch.index + prefix.length;
+  const dateEnd = dateMatch.index + dateMatch[0].length;
+  const taskText = `${cleanText.slice(0, dateStart)} ${cleanText.slice(dateEnd)}`
+    .replace(/\s+/g, " ")
+    .trim();
+
+  if (!dueDate.isValid() || !taskText) {
+    return `- [ ] ${cleanText}`;
+  }
+
+  return `- [ ] ${taskText} 📅 ${dueDate.format("YYYY-MM-DD")}`;
 }
 
 function truncateText(text: string, maxLength: number): string {
