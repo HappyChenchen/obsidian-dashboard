@@ -1,4 +1,4 @@
-import type { DashboardPanelId, DashboardSettings } from "./types";
+import type { DashboardPanelId, DashboardPanelSize, DashboardSettings } from "./types";
 
 export const VIEW_TYPE_DASHBOARD = "dashboard-home-view";
 
@@ -17,6 +17,14 @@ export const DEFAULT_PANEL_ORDER: DashboardPanelId[] = [
   "projects",
 ];
 
+export const DEFAULT_PANEL_SIZES: Record<DashboardPanelId, DashboardPanelSize> = {
+  calendar: "normal",
+  daily: "tall",
+  todo: "tall",
+  database: "wide",
+  projects: "normal",
+};
+
 export const DEFAULT_SETTINGS: DashboardSettings = {
   dailyFolder: "Daily",
   dailyDateFormat: "YYYY-MM-DD",
@@ -27,4 +35,5 @@ export const DEFAULT_SETTINGS: DashboardSettings = {
   pomodoroMinutes: 25,
   openOnStartup: false,
   panelOrder: DEFAULT_PANEL_ORDER,
+  panelSizes: DEFAULT_PANEL_SIZES,
 };

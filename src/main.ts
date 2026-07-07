@@ -1,6 +1,7 @@
 import {
   App,
   ItemView,
+  Menu,
   Notice,
   Plugin,
   PluginSettingTab,
@@ -8,10 +9,12 @@ import {
   TFile,
   WorkspaceLeaf,
   moment,
+  setIcon,
 } from "obsidian";
 import {
   DAILY_TEMPLATE_SECTIONS,
   DEFAULT_PANEL_ORDER,
+  DEFAULT_PANEL_SIZES,
   DEFAULT_SETTINGS,
   VIEW_TYPE_DASHBOARD,
 } from "./constants";
@@ -40,6 +43,7 @@ import {
 import type {
   DashboardData,
   DashboardPanelId,
+  DashboardPanelSize,
   DashboardSettings,
   DashboardTask,
   LibraryItem,
@@ -107,6 +111,7 @@ export default class DashboardPlugin extends Plugin {
   async loadSettings() {
     this.settings = { ...DEFAULT_SETTINGS, ...(await this.loadData()) };
     this.settings.panelOrder = normalizePanelOrder(this.settings.panelOrder);
+    this.settings.panelSizes = normalizePanelSizes(this.settings.panelSizes);
   }
 
   async saveSettings() {
@@ -125,6 +130,14 @@ export default class DashboardPlugin extends Plugin {
     const targetIndex = order.indexOf(targetPanelId);
     order.splice(targetIndex === -1 ? order.length : targetIndex, 0, draggedPanelId);
     this.settings.panelOrder = order;
+    await this.saveSettings();
+  }
+
+  async resizePanel(panelId: DashboardPanelId, size: DashboardPanelSize) {
+    this.settings.panelSizes = {
+      ...normalizePanelSizes(this.settings.panelSizes),
+      [panelId]: size,
+    };
     await this.saveSettings();
   }
 
@@ -402,6 +415,13 @@ class DashboardView extends ItemView {
   private plugin: DashboardPlugin;
   private selectedCalendarDate = moment().format("YYYY-MM-DD");
   private draggedPanelId?: DashboardPanelId;
+  private resizingPanel?: {
+    card: HTMLElement;
+    panelId: DashboardPanelId;
+    startX: number;
+    startY: number;
+    size: DashboardPanelSize;
+  };
   private pomodoroRemaining = 0;
   private pomodoroRunning = false;
   private pomodoroTimer?: number;
@@ -430,6 +450,35 @@ class DashboardView extends ItemView {
 
   async onClose() {
     window.clearInterval(this.pomodoroTimer);
+  }
+
+  getPanelSize(panelId: DashboardPanelId): DashboardPanelSize {
+    return normalizePanelSizes(this.plugin.settings.panelSizes)[panelId];
+  }
+
+  openPanelSizeMenu(event: MouseEvent, panelId: DashboardPanelId) {
+    const currentSize = this.getPanelSize(panelId);
+    const menu = new Menu();
+    const sizes: Array<[DashboardPanelSize, string]> = [
+      ["compact", "紧凑"],
+      ["normal", "标准"],
+      ["wide", "加宽"],
+      ["tall", "加高"],
+      ["large", "大面板"],
+    ];
+
+    for (const [size, label] of sizes) {
+      menu.addItem((item) =>
+        item
+          .setTitle(label)
+          .setChecked(size === currentSize)
+          .onClick(async () => {
+            await this.plugin.resizePanel(panelId, size);
+          }),
+      );
+    }
+
+    menu.showAtMouseEvent(event);
   }
 
   async render() {
@@ -827,11 +876,15 @@ class DashboardView extends ItemView {
     }
   }
 
-  attachPanelDragHandlers(card: HTMLElement, panelId: DashboardPanelId) {
-    card.setAttr("draggable", "true");
+  attachPanelDragHandlers(
+    card: HTMLElement,
+    panelId: DashboardPanelId,
+    handle: HTMLElement,
+  ) {
     card.setAttr("data-panel-id", panelId);
+    handle.setAttr("draggable", "true");
 
-    card.addEventListener("dragstart", (event) => {
+    handle.addEventListener("dragstart", (event) => {
       this.draggedPanelId = panelId;
       card.addClass("is-dragging");
       event.dataTransfer?.setData("text/plain", panelId);
@@ -840,7 +893,7 @@ class DashboardView extends ItemView {
       }
     });
 
-    card.addEventListener("dragend", () => {
+    handle.addEventListener("dragend", () => {
       this.draggedPanelId = undefined;
       card.removeClass("is-dragging");
       this.containerEl.findAll(".dashboard-home__card").forEach((element) => {
@@ -871,6 +924,58 @@ class DashboardView extends ItemView {
         return;
       }
       await this.plugin.movePanel(draggedPanelId, panelId);
+    });
+  }
+
+  attachPanelResizeHandlers(
+    card: HTMLElement,
+    panelId: DashboardPanelId,
+    handle: HTMLElement,
+  ) {
+    handle.addEventListener("pointerdown", (event) => {
+      event.preventDefault();
+      event.stopPropagation();
+      const size = normalizePanelSizes(this.plugin.settings.panelSizes)[panelId];
+      this.resizingPanel = {
+        card,
+        panelId,
+        startX: event.clientX,
+        startY: event.clientY,
+        size,
+      };
+      card.addClass("is-resizing");
+
+      const onPointerMove = (moveEvent: PointerEvent) => {
+        if (!this.resizingPanel) {
+          return;
+        }
+        const nextSize = getSizeFromDrag(
+          this.resizingPanel.size,
+          moveEvent.clientX - this.resizingPanel.startX,
+          moveEvent.clientY - this.resizingPanel.startY,
+        );
+        applyPanelSizeClass(card, nextSize);
+      };
+
+      const onPointerUp = async (upEvent: PointerEvent) => {
+        window.removeEventListener("pointermove", onPointerMove);
+        window.removeEventListener("pointerup", onPointerUp);
+        card.removeClass("is-resizing");
+        const resizingPanel = this.resizingPanel;
+        this.resizingPanel = undefined;
+        if (!resizingPanel) {
+          return;
+        }
+        const nextSize = getSizeFromDrag(
+          resizingPanel.size,
+          upEvent.clientX - resizingPanel.startX,
+          upEvent.clientY - resizingPanel.startY,
+        );
+        await this.plugin.resizePanel(resizingPanel.panelId, nextSize);
+      };
+
+      window.addEventListener("pointermove", onPointerMove);
+      window.addEventListener("pointerup", onPointerUp);
     });
   }
 
@@ -1005,24 +1110,47 @@ function createCard(
   renderActions?: (root: HTMLElement) => void,
 ): HTMLElement {
   const card = root.createDiv({
-    cls: ["dashboard-home__card", variant ? `dashboard-home__card--${variant}` : ""]
+    cls: [
+      "dashboard-home__card",
+      variant ? `dashboard-home__card--${variant}` : "",
+      panelId && view ? getPanelSizeClass(view.getPanelSize(panelId)) : "",
+    ]
       .filter(Boolean)
       .join(" "),
   });
   const header = card.createDiv({ cls: "dashboard-home__card-header" });
   const titleGroup = header.createDiv({ cls: "dashboard-home__card-title-group" });
   if (panelId && view) {
-    titleGroup.createEl("span", {
+    const dragHandle = titleGroup.createEl("button", {
       cls: "dashboard-home__drag-handle",
-      text: "⋮⋮",
-      attr: { title: "Drag to reorder panel" },
+      attr: { title: "拖拽排序", "aria-label": "拖拽排序", type: "button" },
     });
-    view.attachPanelDragHandlers(card, panelId);
+    setIcon(dragHandle, "grip");
+    view.attachPanelDragHandlers(card, panelId, dragHandle);
   }
   titleGroup.createEl("h2", { text: title });
+  const actions = header.createDiv({ cls: "dashboard-home__card-header-actions" });
   if (renderActions) {
-    const actions = header.createDiv({ cls: "dashboard-home__card-header-actions" });
     renderActions(actions);
+  }
+  if (panelId && view) {
+    const sizeButton = actions.createEl("button", {
+      cls: "dashboard-home__panel-size-button",
+      attr: { title: "调整面板尺寸", "aria-label": "调整面板尺寸", type: "button" },
+    });
+    setIcon(sizeButton, "maximize-2");
+    sizeButton.addEventListener("click", (event) => {
+      event.preventDefault();
+      event.stopPropagation();
+      view.openPanelSizeMenu(event, panelId);
+    });
+  }
+  if (panelId && view) {
+    const resizeHandle = card.createDiv({
+      cls: "dashboard-home__resize-handle",
+      attr: { title: "拖拽调整尺寸" },
+    });
+    view.attachPanelResizeHandlers(card, panelId, resizeHandle);
   }
   return card;
 }
@@ -1042,6 +1170,71 @@ function normalizePanelOrder(panelOrder: unknown): DashboardPanelId[] {
   }
 
   return normalized;
+}
+
+function normalizePanelSizes(
+  panelSizes: unknown,
+): Record<DashboardPanelId, DashboardPanelSize> {
+  const validSizes = new Set<DashboardPanelSize>([
+    "compact",
+    "normal",
+    "wide",
+    "tall",
+    "large",
+  ]);
+  const source =
+    panelSizes && typeof panelSizes === "object"
+      ? (panelSizes as Partial<Record<DashboardPanelId, DashboardPanelSize>>)
+      : {};
+  const normalized = { ...DEFAULT_PANEL_SIZES };
+
+  for (const panelId of DEFAULT_PANEL_ORDER) {
+    const size = source[panelId];
+    if (size && validSizes.has(size)) {
+      normalized[panelId] = size;
+    }
+  }
+
+  return normalized;
+}
+
+function getSizeFromDrag(
+  currentSize: DashboardPanelSize,
+  deltaX: number,
+  deltaY: number,
+): DashboardPanelSize {
+  if (Math.abs(deltaX) < 48 && Math.abs(deltaY) < 48) {
+    return currentSize;
+  }
+
+  if (deltaX > 80 && deltaY > 64) {
+    return "large";
+  }
+
+  if (deltaX > 80) {
+    return "wide";
+  }
+
+  if (deltaY > 64) {
+    return "tall";
+  }
+
+  if (deltaX < -64 || deltaY < -64) {
+    return "compact";
+  }
+
+  return "normal";
+}
+
+function applyPanelSizeClass(card: HTMLElement, size: DashboardPanelSize) {
+  for (const panelSize of ["compact", "normal", "wide", "tall", "large"]) {
+    card.removeClass(`dashboard-home__card--size-${panelSize}`);
+  }
+  card.addClass(getPanelSizeClass(size));
+}
+
+function getPanelSizeClass(size: DashboardPanelSize): string {
+  return `dashboard-home__card--size-${size}`;
 }
 
 function renderSummaryStat(root: HTMLElement, label: string, value: number) {

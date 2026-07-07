@@ -159,6 +159,7 @@
 .dashboard-home__grid {
   display: grid;
   gap: 14px;
+  grid-auto-flow: dense;
   grid-template-columns: minmax(280px, 1.1fr) minmax(320px, 1.35fr) minmax(280px, 1fr);
 }
 
@@ -167,7 +168,8 @@
   border: 1px solid var(--dashboard-border);
   border-radius: 8px;
   min-height: 160px;
-  padding: 14px;
+  padding: 14px 14px 18px;
+  position: relative;
   transition: border-color 120ms ease, box-shadow 120ms ease, opacity 120ms ease;
 }
 
@@ -180,20 +182,33 @@
   box-shadow: inset 0 0 0 1px var(--dashboard-accent);
 }
 
-.dashboard-home__card--is-todo {
-  grid-row: span 2;
+.dashboard-home__card.is-resizing {
+  border-color: var(--dashboard-accent);
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--dashboard-accent) 38%, transparent);
 }
 
-.dashboard-home__card--is-calendar {
-  min-height: 300px;
+.dashboard-home__card--size-compact {
+  min-height: 140px;
 }
 
-.dashboard-home__card--is-daily {
-  grid-row: span 2;
+.dashboard-home__card--size-normal {
+  min-height: 220px;
 }
 
-.dashboard-home__card--is-database {
+.dashboard-home__card--size-wide {
   grid-column: span 2;
+  min-height: 220px;
+}
+
+.dashboard-home__card--size-tall {
+  grid-row: span 2;
+  min-height: 360px;
+}
+
+.dashboard-home__card--size-large {
+  grid-column: span 2;
+  grid-row: span 2;
+  min-height: 420px;
 }
 
 .dashboard-home__card-header {
@@ -217,16 +232,38 @@
 }
 
 .dashboard-home__drag-handle {
+  align-items: center;
+  background: var(--dashboard-surface-alt);
+  border: 1px solid transparent;
+  border-radius: 5px;
+  box-shadow: none;
   color: var(--dashboard-text-muted);
   cursor: grab;
-  font-size: 13px;
-  line-height: 1;
+  display: inline-flex;
+  height: 20px;
+  justify-content: center;
+  min-height: 20px;
+  min-width: 20px;
   opacity: 0.58;
+  padding: 0;
   user-select: none;
+  width: 20px;
 }
 
-.dashboard-home__card:active .dashboard-home__drag-handle {
+.dashboard-home__drag-handle svg {
+  height: 14px;
+  width: 14px;
+}
+
+.dashboard-home__drag-handle:active {
   cursor: grabbing;
+}
+
+.dashboard-home__drag-handle:hover {
+  background: var(--dashboard-surface-alt);
+  border-color: var(--dashboard-border);
+  color: var(--text-normal);
+  opacity: 1;
 }
 
 .dashboard-home__card-header-actions {
@@ -239,6 +276,60 @@
   font-size: 12px;
   min-height: 28px;
   padding: 0 10px;
+}
+
+.dashboard-home__panel-size-button {
+  align-items: center;
+  background: var(--dashboard-surface-alt);
+  border: 1px solid transparent;
+  border-radius: 6px;
+  box-shadow: none;
+  color: var(--dashboard-text-muted);
+  display: inline-flex;
+  height: 28px;
+  justify-content: center;
+  min-height: 28px;
+  min-width: 28px;
+  padding: 0;
+  width: 28px;
+}
+
+.dashboard-home__panel-size-button:hover {
+  background: var(--dashboard-surface-alt);
+  border-color: var(--dashboard-border);
+  color: var(--text-normal);
+}
+
+.dashboard-home__panel-size-button svg {
+  height: 14px;
+  width: 14px;
+}
+
+.dashboard-home__resize-handle {
+  border-bottom: 2px solid var(--dashboard-text-muted);
+  border-right: 2px solid var(--dashboard-text-muted);
+  bottom: 8px;
+  cursor: nwse-resize;
+  height: 12px;
+  opacity: 0.38;
+  position: absolute;
+  right: 8px;
+  width: 12px;
+}
+
+.dashboard-home__resize-handle::before {
+  bottom: -8px;
+  content: "";
+  left: -10px;
+  position: absolute;
+  right: -8px;
+  top: -10px;
+}
+
+.dashboard-home__resize-handle:hover,
+.dashboard-home__card.is-resizing .dashboard-home__resize-handle {
+  border-color: var(--dashboard-accent);
+  opacity: 1;
 }
 
 .dashboard-home__card-kicker {
@@ -586,8 +677,9 @@
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
-  .dashboard-home__card--is-database {
-    grid-column: span 1;
+  .dashboard-home__card--size-wide,
+  .dashboard-home__card--size-large {
+    grid-column: span 2;
   }
 
   .dashboard-home__summary {
@@ -612,6 +704,11 @@
   .dashboard-home__quick-row,
   .dashboard-home__grid {
     grid-template-columns: 1fr;
+  }
+
+  .dashboard-home__card--size-wide,
+  .dashboard-home__card--size-large {
+    grid-column: span 1;
   }
 
   .dashboard-home__summary-stats {
