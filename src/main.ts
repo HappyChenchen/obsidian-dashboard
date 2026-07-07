@@ -549,28 +549,31 @@ class DashboardView extends ItemView {
   }
 
   private renderDaily(root: HTMLElement, data: DashboardData) {
-    const card = createCard(root, "今日笔记", "is-daily");
-    card.createEl("p", {
-      cls: "dashboard-home__card-kicker",
-      text: moment(data.today, this.plugin.settings.dailyDateFormat).format("YYYY-MM-DD"),
+    const card = createCard(root, "今日笔记", "is-daily", (actions) => {
+      const button = actions.createEl("button", {
+        text: data.todayFile ? "打开" : "创建",
+      });
+      button.addEventListener("click", async () => {
+        const file = await this.plugin.ensureDailyNote(data.today);
+        await this.plugin.openFile(file);
+      });
     });
+
+    const dateLabel = moment(data.today, this.plugin.settings.dailyDateFormat).format(
+      "YYYY-MM-DD",
+    );
 
     if (!data.todayFile) {
       card.createEl("p", {
         cls: "dashboard-home__muted",
         text: "今天还没有笔记。",
       });
-      const button = card.createEl("button", { text: "创建今日笔记" });
-      button.addEventListener("click", async () => {
-        const file = await this.plugin.ensureDailyNote(data.today);
-        await this.plugin.openFile(file);
-      });
       return;
     }
 
     card.createEl("p", {
       cls: "dashboard-home__file-meta",
-      text: data.todayFile.path,
+      text: `${dateLabel} · ${data.todayFile.path}`,
     });
 
     const sectionsByHeading = new Map(
@@ -607,11 +610,6 @@ class DashboardView extends ItemView {
       item.createEl("strong", { text: sectionText ? "已记录" : "待补充" });
     }
 
-    const actions = card.createDiv({ cls: "dashboard-home__card-actions" });
-    actions.createEl("button", { text: "打开今日笔记" }).addEventListener("click", () => {
-      this.plugin.openFile(data.todayFile as TFile);
-    });
-
     this.renderRecentThoughts(card, data, true);
   }
 
@@ -634,7 +632,7 @@ class DashboardView extends ItemView {
       item.addEventListener("click", () => this.plugin.openFile(thought.file));
       const heading = item.createDiv({ cls: "dashboard-home__thought-heading" });
       heading.createEl("span", {
-        text: `${moment(thought.date).format("MM-DD")} · ${thought.file.basename}`,
+        text: moment(thought.date).format("MM-DD"),
       });
       item.createEl("p", { text: truncateText(thought.text, 150) });
     }
@@ -906,13 +904,23 @@ class DashboardSettingTab extends PluginSettingTab {
   }
 }
 
-function createCard(root: HTMLElement, title: string, variant?: string): HTMLElement {
+function createCard(
+  root: HTMLElement,
+  title: string,
+  variant?: string,
+  renderActions?: (root: HTMLElement) => void,
+): HTMLElement {
   const card = root.createDiv({
     cls: ["dashboard-home__card", variant ? `dashboard-home__card--${variant}` : ""]
       .filter(Boolean)
       .join(" "),
   });
-  card.createEl("h2", { text: title });
+  const header = card.createDiv({ cls: "dashboard-home__card-header" });
+  header.createEl("h2", { text: title });
+  if (renderActions) {
+    const actions = header.createDiv({ cls: "dashboard-home__card-header-actions" });
+    renderActions(actions);
+  }
   return card;
 }
 
