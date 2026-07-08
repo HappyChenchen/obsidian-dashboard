@@ -339,8 +339,15 @@ export default class DashboardPlugin extends Plugin {
   }
 
   private async buildMonthlyDiaryBlock(month: moment.Moment): Promise<string> {
-    const rows: string[] = [];
+    const cells: string[] = [];
+    const firstDay = month.clone().startOf("month");
     const daysInMonth = month.daysInMonth();
+    for (const dayName of ["日", "一", "二", "三", "四", "五", "六"]) {
+      cells.push(`<div class="dashboard-monthly-weekday">${dayName}</div>`);
+    }
+    for (let index = 0; index < firstDay.day(); index += 1) {
+      cells.push('<div class="dashboard-monthly-empty"></div>');
+    }
     for (let day = 1; day <= daysInMonth; day += 1) {
       const date = month.clone().date(day).format("YYYY-MM-DD");
       const dailyFile = this.getDailyFile(date);
@@ -350,50 +357,58 @@ export default class DashboardPlugin extends Plugin {
       const frontmatter = dailyFile
         ? this.app.metadataCache.getFileCache(dailyFile)?.frontmatter ?? {}
         : {};
-      const link = this.getDailyMarkdownLink(date);
-      rows.push(
-        [
-          date,
-          link,
-          getDailyValue(frontmatter, sections, ["mood", "心情", "today_mood"], [
-            "今日心情",
-            "心情",
-          ]),
-          getDailyValue(frontmatter, sections, ["efficiency", "效率", "productivity"], [
-            "今日效率",
-            "效率",
-          ]),
-          getDailyValue(frontmatter, sections, [
-            "review",
-            "self_review",
-            "评价",
-            "自我评价",
-          ], ["自我评价", "今日评价", "复盘"]),
-          getDailyText(sections, ["今日灵感", "灵感", "想法/思考"]),
-        ]
-          .map(escapeTableCell)
-          .join(" | "),
-      );
+      const linkTarget = this.getDailyMarkdownTarget(date);
+      const mood = getDailyValue(frontmatter, sections, ["mood", "心情", "today_mood"], [
+        "今日心情",
+        "心情",
+      ]);
+      const efficiency = getDailyValue(frontmatter, sections, [
+        "efficiency",
+        "效率",
+        "productivity",
+      ], ["今日效率", "效率"]);
+      const review = getDailyValue(frontmatter, sections, [
+        "review",
+        "self_review",
+        "评价",
+        "自我评价",
+      ], ["自我评价", "今日评价", "复盘"]);
+      const inspiration = getDailyText(sections, ["今日灵感", "灵感", "想法/思考"]);
+      const classes = ["dashboard-monthly-day", dailyFile ? "has-note" : ""]
+        .filter(Boolean)
+        .join(" ");
+      const meta = [efficiency, review].filter(Boolean).map(escapeHtml).join(" · ");
+      cells.push([
+        `<div class="${classes}">`,
+        '  <div class="dashboard-monthly-day-header">',
+        `    <a class="internal-link" data-href="${escapeAttribute(linkTarget)}" href="${escapeAttribute(linkTarget)}">${String(day).padStart(2, "0")}</a>`,
+        mood ? `    <span>${escapeHtml(mood)}</span>` : "",
+        "  </div>",
+        inspiration
+          ? `  <div class="dashboard-monthly-inspiration">${formatMonthlyText(inspiration)}</div>`
+          : "",
+        meta ? `  <div class="dashboard-monthly-meta">${meta}</div>` : "",
+        "</div>",
+      ].filter(Boolean).join("\n"));
     }
 
     return [
       MONTHLY_DIARY_START,
-      "| 日期 | 日记 | 心情 | 效率 | 自我评价 | 灵感 |",
-      "|---|---|---|---|---|---|",
-      ...rows.map((row) => `| ${row} |`),
+      '<div class="dashboard-monthly-grid">',
+      ...cells,
+      "</div>",
       MONTHLY_DIARY_END,
       "",
     ].join("\n");
   }
 
-  private getDailyMarkdownLink(date: string): string {
+  private getDailyMarkdownTarget(date: string): string {
     const folder = renderDailyFolder(
       this.settings.dailyFolder,
       date,
       this.settings.dailyDateFormat,
     );
-    const path = folder ? `${folder}/${date}` : date;
-    return `[[${path}]]`;
+    return folder ? `${folder}/${date}` : date;
   }
 
   async getDailyTodoTasks(date: string): Promise<DashboardTask[]> {
@@ -1355,11 +1370,21 @@ function getDailyValue(
   return getDailyText(sections, headings);
 }
 
-function escapeTableCell(value: string): string {
+function escapeHtml(value: string): string {
   return value
-    .replace(/\s+/g, " ")
-    .replace(/\|/g, "\\|")
-    .trim();
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
+}
+
+function escapeAttribute(value: string): string {
+  return escapeHtml(value);
+}
+
+function formatMonthlyText(value: string): string {
+  return escapeHtml(value.trim()).replace(/\n+/g, "<br>");
 }
 
 function buildQuickTaskLine(text: string): string | undefined {

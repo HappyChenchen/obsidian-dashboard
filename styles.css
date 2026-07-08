@@ -207,6 +207,83 @@
   text-decoration: underline;
 }
 
+.dashboard-monthly-grid {
+  display: grid;
+  gap: 8px;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  margin: 12px 0 18px;
+}
+
+.dashboard-monthly-weekday {
+  color: var(--text-muted);
+  font-size: 12px;
+  text-align: center;
+}
+
+.dashboard-monthly-empty,
+.dashboard-monthly-day {
+  min-height: 96px;
+  min-width: 0;
+}
+
+.dashboard-monthly-day {
+  background: var(--background-secondary);
+  border: 1px solid var(--background-modifier-border);
+  border-radius: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  overflow: hidden;
+  padding: 8px;
+}
+
+.dashboard-monthly-day.has-note {
+  background: color-mix(in srgb, var(--interactive-accent), transparent 88%);
+  border-color: color-mix(in srgb, var(--interactive-accent), transparent 60%);
+}
+
+.dashboard-monthly-day-header {
+  align-items: center;
+  display: flex;
+  gap: 6px;
+  justify-content: space-between;
+}
+
+.dashboard-monthly-day-header a {
+  font-size: 12px;
+  font-weight: 700;
+  text-decoration: none;
+}
+
+.dashboard-monthly-day-header span {
+  color: var(--text-accent);
+  font-size: 11px;
+  font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.dashboard-monthly-inspiration {
+  color: var(--text-normal);
+  display: -webkit-box;
+  font-size: 12px;
+  line-height: 1.35;
+  overflow: hidden;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 3;
+}
+
+.dashboard-monthly-meta {
+  color: var(--text-muted);
+  font-size: 11px;
+  line-height: 1.3;
+  margin-top: auto;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .dashboard-home__resize-handle {
   bottom: 8px;
   cursor: nwse-resize;
