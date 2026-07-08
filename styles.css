@@ -207,55 +207,115 @@
   text-decoration: underline;
 }
 
-.dashboard-monthly-grid {
+.dashboard-monthly-panel {
+  --dashboard-monthly-accent: var(--interactive-accent);
+  --dashboard-monthly-border: var(--background-modifier-border);
+  box-sizing: border-box;
+  margin: 0 auto;
+  max-width: 1280px;
+  padding: 28px 36px 32px 28px;
+  width: 100%;
+}
+
+.dashboard-monthly-panel button {
+  border: 1px solid var(--dashboard-monthly-border);
+  border-radius: 6px;
+  background: var(--interactive-normal);
+  color: var(--text-normal);
+  cursor: pointer;
+  min-height: 32px;
+  padding: 0 12px;
+}
+
+.dashboard-monthly-panel button:hover {
+  background: var(--interactive-hover);
+}
+
+.dashboard-monthly-panel__header {
+  align-items: center;
+  display: flex;
+  gap: 16px;
+  justify-content: space-between;
+  margin-bottom: 18px;
+}
+
+.dashboard-monthly-panel__header h1 {
+  font-size: 30px;
+  line-height: 1.15;
+  margin: 0;
+}
+
+.dashboard-monthly-panel__eyebrow {
+  color: var(--text-muted);
+  font-size: 12px;
+  letter-spacing: 0;
+  margin: 0 0 4px;
+  text-transform: uppercase;
+}
+
+.dashboard-monthly-panel__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  justify-content: flex-end;
+}
+
+.dashboard-monthly-panel__grid {
   display: grid;
   gap: 8px;
   grid-template-columns: repeat(7, minmax(0, 1fr));
-  margin: 12px 0 18px;
 }
 
-.dashboard-monthly-weekday {
+.dashboard-monthly-panel__weekday {
   color: var(--text-muted);
   font-size: 12px;
   text-align: center;
 }
 
-.dashboard-monthly-empty,
-.dashboard-monthly-day {
-  min-height: 96px;
+.dashboard-monthly-panel__empty,
+.dashboard-monthly-panel__day {
+  min-height: 122px;
   min-width: 0;
 }
 
-.dashboard-monthly-day {
+.dashboard-monthly-panel__day {
   background: var(--background-secondary);
-  border: 1px solid var(--background-modifier-border);
+  border: 1px solid var(--dashboard-monthly-border);
   border-radius: 8px;
+  cursor: pointer;
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: 7px;
   overflow: hidden;
-  padding: 8px;
+  padding: 10px;
+  transition: background 120ms ease, border-color 120ms ease, transform 120ms ease;
 }
 
-.dashboard-monthly-day.has-note {
-  background: color-mix(in srgb, var(--interactive-accent), transparent 88%);
-  border-color: color-mix(in srgb, var(--interactive-accent), transparent 60%);
+.dashboard-monthly-panel__day:hover {
+  background: var(--background-secondary-alt);
+  border-color: color-mix(in srgb, var(--dashboard-monthly-accent), transparent 48%);
 }
 
-.dashboard-monthly-day-header {
+.dashboard-monthly-panel__day.has-content {
+  background: color-mix(in srgb, var(--dashboard-monthly-accent), transparent 90%);
+}
+
+.dashboard-monthly-panel__day.is-today {
+  border-color: var(--dashboard-monthly-accent);
+}
+
+.dashboard-monthly-panel__day-header {
   align-items: center;
   display: flex;
-  gap: 6px;
+  gap: 8px;
   justify-content: space-between;
 }
 
-.dashboard-monthly-day-header a {
-  font-size: 12px;
-  font-weight: 700;
-  text-decoration: none;
+.dashboard-monthly-panel__day-header strong {
+  font-size: 13px;
 }
 
-.dashboard-monthly-day-header span {
+.dashboard-monthly-panel__day-header span {
   color: var(--text-accent);
   font-size: 11px;
   font-weight: 600;
@@ -264,20 +324,20 @@
   white-space: nowrap;
 }
 
-.dashboard-monthly-inspiration {
+.dashboard-monthly-panel__snippet {
   color: var(--text-normal);
   display: -webkit-box;
   font-size: 12px;
-  line-height: 1.35;
+  line-height: 1.4;
   overflow: hidden;
   -webkit-box-orient: vertical;
   -webkit-line-clamp: 3;
 }
 
-.dashboard-monthly-meta {
+.dashboard-monthly-panel__meta {
   color: var(--text-muted);
   font-size: 11px;
-  line-height: 1.3;
+  line-height: 1.35;
   margin-top: auto;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -652,13 +712,36 @@
 }
 
 @media (max-width: 720px) {
-  .dashboard-home {
+  .dashboard-home,
+  .dashboard-monthly-panel {
     padding: 16px 18px 16px 16px;
   }
 
-  .dashboard-home__header {
+  .dashboard-home__header,
+  .dashboard-monthly-panel__header {
     align-items: flex-start;
     flex-direction: column;
+  }
+
+  .dashboard-monthly-panel__actions {
+    justify-content: flex-start;
+  }
+
+  .dashboard-monthly-panel__grid {
+    gap: 5px;
+  }
+
+  .dashboard-monthly-panel__empty,
+  .dashboard-monthly-panel__day {
+    min-height: 86px;
+  }
+
+  .dashboard-monthly-panel__day {
+    padding: 7px;
+  }
+
+  .dashboard-monthly-panel__snippet {
+    -webkit-line-clamp: 2;
   }
 
   .dashboard-home__quick-row,

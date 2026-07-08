@@ -59,6 +59,15 @@ export interface RecentThought {
   updated: number;
 }
 
+export interface DailyMonthSummary {
+  date: string;
+  file?: TFile;
+  inspiration: string;
+  mood: string;
+  efficiency: string;
+  review: string;
+}
+
 export interface DashboardData {
   today: string;
   todayFile?: TFile;

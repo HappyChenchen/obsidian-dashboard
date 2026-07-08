@@ -1,6 +1,7 @@
 import type { DashboardPanelId, DashboardPanelSize, DashboardSettings } from "./types";
 
 export const VIEW_TYPE_DASHBOARD = "dashboard-home-view";
+export const VIEW_TYPE_MONTHLY_DIARY = "dashboard-monthly-diary-view";
 
 export const DAILY_TEMPLATE_SECTIONS = [
   "今日todo",
