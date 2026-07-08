@@ -39,6 +39,8 @@ import {
 } from "./tasks";
 import type {
   DashboardData,
+  DailySection,
+  DailyMonthSummary,
   DashboardPanelId,
   DashboardPanelSize,
   DashboardSettings,
@@ -174,6 +176,7 @@ export default class DashboardPlugin extends Plugin {
     const files = this.app.vault.getMarkdownFiles();
     const tasks: DashboardTask[] = [];
     const dailyDates = new Set<string>();
+    const dailyMonthSummaries = new Map<string, DailyMonthSummary>();
     const dailyTodosByDate = new Map<string, DashboardTask[]>();
     const projects: ProjectSummary[] = [];
     const articles: LibraryItem[] = [];
@@ -198,8 +201,36 @@ export default class DashboardPlugin extends Plugin {
         ).filter((task) => !task.done);
         dailyTodosByDate.set(dailyDate, dailyTodos);
 
+        dailyMonthSummaries.set(dailyDate, {
+          date: dailyDate,
+          file,
+          inspiration: getDailyText(dailySectionsForFile, [
+            "今日灵感",
+            "灵感",
+            "想法/思考",
+          ]),
+          mood: getDailyValue(frontmatter, dailySectionsForFile, [
+            "mood",
+            "心情",
+            "today_mood",
+          ], ["今日心情", "心情"]),
+          efficiency: getDailyValue(frontmatter, dailySectionsForFile, [
+            "efficiency",
+            "效率",
+            "productivity",
+          ], ["今日效率", "效率"]),
+          review: getDailyValue(frontmatter, dailySectionsForFile, [
+            "review",
+            "self_review",
+            "评价",
+            "自我评价",
+          ], ["自我评价", "今日评价", "复盘"]),
+        });
+
         const thoughtText = getSectionText(
-          dailySectionsForFile.find((section) => section.heading === "想法/思考"),
+          dailySectionsForFile.find((section) =>
+            ["今日灵感", "灵感", "想法/思考"].includes(section.heading),
+          ),
         );
         if (thoughtText) {
           recentThoughts.push({
@@ -255,6 +286,7 @@ export default class DashboardPlugin extends Plugin {
       tasks: allOpenTasks.slice(0, 30),
       allTasks: allOpenTasks,
       dailyDates,
+      dailyMonthSummaries,
       calendarCounts,
       projects: projects.sort((a, b) => b.updated - a.updated).slice(0, 10),
       articles: articles.sort((a, b) => b.updated - a.updated).slice(0, 8),
@@ -407,6 +439,7 @@ export default class DashboardPlugin extends Plugin {
 class DashboardView extends ItemView {
   private plugin: DashboardPlugin;
   private selectedCalendarDate = moment().format("YYYY-MM-DD");
+  private calendarView: "todo" | "diary" = "todo";
   private draggedPanelId?: DashboardPanelId;
   private resizingPanel?: {
     card: HTMLElement;
@@ -478,11 +511,6 @@ class DashboardView extends ItemView {
   ) {
     if (panelId === "calendar") {
       await this.renderCalendar(root, data);
-      return;
-    }
-
-    if (panelId === "monthly") {
-      this.renderMonthlyDiary(root, data);
       return;
     }
 
@@ -719,8 +747,24 @@ class DashboardView extends ItemView {
   }
 
   private async renderCalendar(root: HTMLElement, data: DashboardData) {
-    const card = createCard(root, "日历", "is-calendar", "calendar", this);
+    const card = createCard(root, "日历", "is-calendar", "calendar", this, (actions) => {
+      const toggle = actions.createEl("button", {
+        cls: "dashboard-home__link-button",
+        text: this.calendarView === "diary" ? "待办" : "月度日记",
+      });
+      toggle.addEventListener("click", async (event) => {
+        event.preventDefault();
+        event.stopPropagation();
+        this.calendarView = this.calendarView === "diary" ? "todo" : "diary";
+        await this.render();
+      });
+    });
     const month = moment();
+    if (this.calendarView === "diary") {
+      this.renderCalendarDiaryGrid(card, data, month);
+      return;
+    }
+
     const start = month.clone().startOf("month").startOf("week");
     const today = moment().format("YYYY-MM-DD");
 
@@ -776,9 +820,11 @@ class DashboardView extends ItemView {
     }
   }
 
-  private renderMonthlyDiary(root: HTMLElement, data: DashboardData) {
-    const card = createCard(root, "月度日记", "is-monthly", "monthly", this);
-    const month = moment();
+  private renderCalendarDiaryGrid(
+    card: HTMLElement,
+    data: DashboardData,
+    month: moment.Moment,
+  ) {
     const today = moment().format("YYYY-MM-DD");
     const firstDay = month.clone().startOf("month");
     const daysInMonth = month.daysInMonth();
@@ -790,21 +836,22 @@ class DashboardView extends ItemView {
     meta.createEl("span", { text: month.format("YYYY 年 M 月") });
     meta.createEl("strong", { text: `${writtenDates.length}/${daysInMonth}` });
 
-    const grid = card.createDiv({ cls: "dashboard-home__month-grid" });
+    const grid = card.createDiv({ cls: "dashboard-home__diary-grid" });
     for (const dayName of ["日", "一", "二", "三", "四", "五", "六"]) {
-      grid.createDiv({ cls: "dashboard-home__month-weekday", text: dayName });
+      grid.createDiv({ cls: "dashboard-home__diary-weekday", text: dayName });
     }
 
     for (let index = 0; index < firstDay.day(); index += 1) {
-      grid.createDiv({ cls: "dashboard-home__month-empty" });
+      grid.createDiv({ cls: "dashboard-home__diary-empty" });
     }
 
     for (let day = 1; day <= daysInMonth; day += 1) {
       const date = month.clone().date(day).format("YYYY-MM-DD");
-      const hasNote = data.dailyDates.has(date);
+      const summary = data.dailyMonthSummaries.get(date);
+      const hasNote = Boolean(summary);
       const cell = grid.createEl("button", {
         cls: [
-          "dashboard-home__month-day",
+          "dashboard-home__diary-day",
           hasNote ? "has-note" : "",
           date === today ? "is-today" : "",
         ].join(" "),
@@ -813,7 +860,26 @@ class DashboardView extends ItemView {
           title: hasNote ? "打开日记" : "创建日记",
         },
       });
-      cell.createEl("span", { text: String(day) });
+      const dayHeader = cell.createDiv({ cls: "dashboard-home__diary-day-header" });
+      dayHeader.createEl("span", { text: String(day) });
+      if (summary?.mood) {
+        dayHeader.createEl("strong", { text: summary.mood });
+      }
+      const previewText = summary
+        ? summary.inspiration || summary.review || summary.efficiency
+        : "";
+      if (previewText) {
+        cell.createEl("small", { text: truncateText(previewText, 32) });
+      }
+      const metrics = [summary?.efficiency, summary?.review]
+        .filter(Boolean)
+        .map((value) => truncateText(String(value), 12));
+      if (metrics.length > 0) {
+        cell.createDiv({
+          cls: "dashboard-home__diary-metrics",
+          text: metrics.join(" · "),
+        });
+      }
       cell.addEventListener("click", async () => {
         const file = await this.plugin.ensureDailyNote(date);
         await this.plugin.openFile(file);
@@ -1227,6 +1293,31 @@ function applyPanelSizeClass(card: HTMLElement, size: DashboardPanelSize) {
 
 function getPanelSizeClass(size: DashboardPanelSize): string {
   return `dashboard-home__card--size-${size}`;
+}
+
+function getDailyText(sections: DailySection[], headings: string[]): string {
+  return getSectionText(
+    sections.find((section) => headings.includes(section.heading)),
+  );
+}
+
+function getDailyValue(
+  frontmatter: Record<string, unknown>,
+  sections: DailySection[],
+  frontmatterKeys: string[],
+  headings: string[],
+): string {
+  for (const key of frontmatterKeys) {
+    const value = frontmatter[key];
+    if (typeof value === "string" || typeof value === "number") {
+      const text = String(value).trim();
+      if (text) {
+        return text;
+      }
+    }
+  }
+
+  return getDailyText(sections, headings);
 }
 
 function buildQuickTaskLine(text: string): string | undefined {

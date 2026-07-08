@@ -11,7 +11,6 @@ export const DAILY_TEMPLATE_SECTIONS = [
 
 export const DEFAULT_PANEL_ORDER: DashboardPanelId[] = [
   "calendar",
-  "monthly",
   "daily",
   "todo",
   "database",
@@ -19,8 +18,7 @@ export const DEFAULT_PANEL_ORDER: DashboardPanelId[] = [
 ];
 
 export const DEFAULT_PANEL_SIZES: Record<DashboardPanelId, DashboardPanelSize> = {
-  calendar: "normal",
-  monthly: "normal",
+  calendar: "wide",
   daily: "tall",
   todo: "tall",
   database: "wide",
