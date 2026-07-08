@@ -1069,16 +1069,18 @@ class MonthlyDiaryView extends ItemView {
   async render() {
     const root = this.containerEl.children[1] as HTMLElement;
     root.empty();
-    root.addClass("dashboard-monthly-panel");
+    root.removeClass("dashboard-monthly-panel");
+    root.addClass("dashboard-monthly-view");
+    const panel = root.createDiv({ cls: "dashboard-monthly-panel" });
 
     const month = getSafeMonth(this.month);
-    this.renderHeader(root, month);
+    this.renderHeader(panel, month);
 
     const summaries = await this.plugin.collectDailyMonthSummaries(
       month.format("YYYY-MM"),
     );
     const summaryByDate = new Map(summaries.map((summary) => [summary.date, summary]));
-    this.renderGrid(root, month, summaryByDate);
+    this.renderGrid(panel, month, summaryByDate);
   }
 
   private renderHeader(root: HTMLElement, month: moment.Moment) {

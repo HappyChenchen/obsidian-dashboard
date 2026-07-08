@@ -207,14 +207,20 @@
   text-decoration: underline;
 }
 
+.dashboard-monthly-view {
+  box-sizing: border-box;
+  overflow: auto;
+}
+
 .dashboard-monthly-panel {
   --dashboard-monthly-accent: var(--interactive-accent);
   --dashboard-monthly-border: var(--background-modifier-border);
   box-sizing: border-box;
-  margin: 0 auto;
+  margin: 0 auto 32px;
   max-width: 1180px;
-  padding: 36px max(88px, 6vw) 40px max(72px, 5vw);
-  width: 100%;
+  min-width: 0;
+  padding: 36px 0 40px;
+  width: calc(100% - 160px);
 }
 
 .dashboard-monthly-panel button {
@@ -712,9 +718,13 @@
 }
 
 @media (max-width: 720px) {
-  .dashboard-home,
-  .dashboard-monthly-panel {
+  .dashboard-home {
     padding: 20px 32px 20px 26px;
+  }
+
+  .dashboard-monthly-panel {
+    padding: 20px 0;
+    width: calc(100% - 58px);
   }
 
   .dashboard-home__header,
