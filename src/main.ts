@@ -39,6 +39,7 @@ import {
 } from "./tasks";
 import type {
   DashboardData,
+  DailySection,
   DashboardPanelId,
   DashboardPanelSize,
   DashboardSettings,
@@ -47,6 +48,9 @@ import type {
   ProjectSummary,
   RecentThought,
 } from "./types";
+
+const MONTHLY_DIARY_START = "<!-- dashboard-monthly:start -->";
+const MONTHLY_DIARY_END = "<!-- dashboard-monthly:end -->";
 
 export default class DashboardPlugin extends Plugin {
   settings: DashboardSettings = DEFAULT_SETTINGS;
@@ -286,6 +290,110 @@ export default class DashboardPlugin extends Plugin {
 
     const parsed = moment(file.basename, this.settings.dailyDateFormat, true);
     return parsed.isValid() ? parsed.format("YYYY-MM-DD") : undefined;
+  }
+
+  getMonthlyDiaryFile(date = moment().format(this.settings.dailyDateFormat)): TFile | undefined {
+    const month = moment(date, this.settings.dailyDateFormat, true);
+    const safeMonth = month.isValid() ? month : moment(date);
+    const folder = renderDailyFolder(
+      this.settings.dailyFolder,
+      safeMonth.format(this.settings.dailyDateFormat),
+      this.settings.dailyDateFormat,
+    );
+    const path = folder
+      ? `${folder}/${safeMonth.format("YYYY-MM")}.md`
+      : `${safeMonth.format("YYYY-MM")}.md`;
+    const file = this.app.vault.getAbstractFileByPath(path);
+    return file instanceof TFile ? file : undefined;
+  }
+
+  async ensureMonthlyDiaryNote(
+    date = moment().format(this.settings.dailyDateFormat),
+  ): Promise<TFile> {
+    const month = moment(date, this.settings.dailyDateFormat, true);
+    const safeMonth = month.isValid() ? month : moment(date);
+    const folder = renderDailyFolder(
+      this.settings.dailyFolder,
+      safeMonth.format(this.settings.dailyDateFormat),
+      this.settings.dailyDateFormat,
+    );
+    if (folder) {
+      await ensureFolder(this.app, folder);
+    }
+
+    const path = folder
+      ? `${folder}/${safeMonth.format("YYYY-MM")}.md`
+      : `${safeMonth.format("YYYY-MM")}.md`;
+    const generatedBlock = await this.buildMonthlyDiaryBlock(safeMonth);
+    const existing = this.app.vault.getAbstractFileByPath(path);
+    if (existing instanceof TFile) {
+      const content = await this.app.vault.cachedRead(existing);
+      await this.app.vault.modify(
+        existing,
+        mergeMonthlyDiaryBlock(content, generatedBlock),
+      );
+      return existing;
+    }
+
+    return this.app.vault.create(path, buildMonthlyDiaryContent(safeMonth, generatedBlock));
+  }
+
+  private async buildMonthlyDiaryBlock(month: moment.Moment): Promise<string> {
+    const rows: string[] = [];
+    const daysInMonth = month.daysInMonth();
+    for (let day = 1; day <= daysInMonth; day += 1) {
+      const date = month.clone().date(day).format("YYYY-MM-DD");
+      const dailyFile = this.getDailyFile(date);
+      const sections = dailyFile
+        ? extractDailySections(await this.app.vault.cachedRead(dailyFile))
+        : [];
+      const frontmatter = dailyFile
+        ? this.app.metadataCache.getFileCache(dailyFile)?.frontmatter ?? {}
+        : {};
+      const link = this.getDailyMarkdownLink(date);
+      rows.push(
+        [
+          date,
+          link,
+          getDailyValue(frontmatter, sections, ["mood", "心情", "today_mood"], [
+            "今日心情",
+            "心情",
+          ]),
+          getDailyValue(frontmatter, sections, ["efficiency", "效率", "productivity"], [
+            "今日效率",
+            "效率",
+          ]),
+          getDailyValue(frontmatter, sections, [
+            "review",
+            "self_review",
+            "评价",
+            "自我评价",
+          ], ["自我评价", "今日评价", "复盘"]),
+          getDailyText(sections, ["今日灵感", "灵感", "想法/思考"]),
+        ]
+          .map(escapeTableCell)
+          .join(" | "),
+      );
+    }
+
+    return [
+      MONTHLY_DIARY_START,
+      "| 日期 | 日记 | 心情 | 效率 | 自我评价 | 灵感 |",
+      "|---|---|---|---|---|---|",
+      ...rows.map((row) => `| ${row} |`),
+      MONTHLY_DIARY_END,
+      "",
+    ].join("\n");
+  }
+
+  private getDailyMarkdownLink(date: string): string {
+    const folder = renderDailyFolder(
+      this.settings.dailyFolder,
+      date,
+      this.settings.dailyDateFormat,
+    );
+    const path = folder ? `${folder}/${date}` : date;
+    return `[[${path}]]`;
   }
 
   async getDailyTodoTasks(date: string): Promise<DashboardTask[]> {
@@ -716,7 +824,18 @@ class DashboardView extends ItemView {
   }
 
   private async renderCalendar(root: HTMLElement, data: DashboardData) {
-    const card = createCard(root, "日历", "is-calendar", "calendar", this);
+    const card = createCard(root, "日历", "is-calendar", "calendar", this, (actions) => {
+      const monthly = actions.createEl("button", {
+        cls: "dashboard-home__link-button",
+        text: "月度日记",
+      });
+      monthly.addEventListener("click", async (event) => {
+        event.preventDefault();
+        event.stopPropagation();
+        const file = await this.plugin.ensureMonthlyDiaryNote();
+        await this.plugin.openFile(file);
+      });
+    });
     const month = moment();
     const start = month.clone().startOf("month").startOf("week");
     const today = moment().format("YYYY-MM-DD");
@@ -1179,6 +1298,68 @@ function applyPanelSizeClass(card: HTMLElement, size: DashboardPanelSize) {
 
 function getPanelSizeClass(size: DashboardPanelSize): string {
   return `dashboard-home__card--size-${size}`;
+}
+
+function buildMonthlyDiaryContent(
+  month: moment.Moment,
+  generatedBlock: string,
+): string {
+  return [
+    "---",
+    "type: monthly",
+    `month: ${month.format("YYYY-MM")}`,
+    "---",
+    "",
+    `# ${month.format("YYYY 年 M 月")}月度日记`,
+    "",
+    generatedBlock,
+    "## 月度总结",
+    "",
+  ].join("\n");
+}
+
+function mergeMonthlyDiaryBlock(content: string, generatedBlock: string): string {
+  const startIndex = content.indexOf(MONTHLY_DIARY_START);
+  const endIndex = content.indexOf(MONTHLY_DIARY_END);
+  if (startIndex !== -1 && endIndex !== -1 && endIndex > startIndex) {
+    const before = content.slice(0, startIndex).trimEnd();
+    const after = content.slice(endIndex + MONTHLY_DIARY_END.length).trimStart();
+    return `${before}\n\n${generatedBlock}\n${after}`;
+  }
+
+  return `${content.trimEnd()}\n\n${generatedBlock}\n`;
+}
+
+function getDailyText(sections: DailySection[], headings: string[]): string {
+  return getSectionText(
+    sections.find((section) => headings.includes(section.heading)),
+  );
+}
+
+function getDailyValue(
+  frontmatter: Record<string, unknown>,
+  sections: DailySection[],
+  frontmatterKeys: string[],
+  headings: string[],
+): string {
+  for (const key of frontmatterKeys) {
+    const value = frontmatter[key];
+    if (typeof value === "string" || typeof value === "number") {
+      const text = String(value).trim();
+      if (text) {
+        return text;
+      }
+    }
+  }
+
+  return getDailyText(sections, headings);
+}
+
+function escapeTableCell(value: string): string {
+  return value
+    .replace(/\s+/g, " ")
+    .replace(/\|/g, "\\|")
+    .trim();
 }
 
 function buildQuickTaskLine(text: string): string | undefined {

@@ -193,6 +193,20 @@
   padding: 0 10px;
 }
 
+.dashboard-home__card-header-actions .dashboard-home__link-button {
+  background: transparent;
+  border: 0;
+  box-shadow: none;
+  color: var(--text-accent);
+  min-height: 0;
+  padding: 0;
+}
+
+.dashboard-home__card-header-actions .dashboard-home__link-button:hover {
+  color: var(--text-accent-hover);
+  text-decoration: underline;
+}
+
 .dashboard-home__resize-handle {
   bottom: 8px;
   cursor: nwse-resize;
