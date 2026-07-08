@@ -6,8 +6,8 @@
   --dashboard-text-muted: var(--text-muted);
   box-sizing: border-box;
   margin: 0 auto;
-  max-width: 1380px;
-  padding: 32px 64px 32px 48px;
+  max-width: 1280px;
+  padding: 36px max(88px, 6vw) 36px max(72px, 5vw);
   width: 100%;
 }
 
@@ -212,8 +212,8 @@
   --dashboard-monthly-border: var(--background-modifier-border);
   box-sizing: border-box;
   margin: 0 auto;
-  max-width: 1280px;
-  padding: 32px 64px 36px 48px;
+  max-width: 1180px;
+  padding: 36px max(88px, 6vw) 40px max(72px, 5vw);
   width: 100%;
 }
 
@@ -714,7 +714,7 @@
 @media (max-width: 720px) {
   .dashboard-home,
   .dashboard-monthly-panel {
-    padding: 18px 26px 18px 22px;
+    padding: 20px 32px 20px 26px;
   }
 
   .dashboard-home__header,
