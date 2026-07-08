@@ -11,6 +11,7 @@ export const DAILY_TEMPLATE_SECTIONS = [
 
 export const DEFAULT_PANEL_ORDER: DashboardPanelId[] = [
   "calendar",
+  "monthly",
   "daily",
   "todo",
   "database",
@@ -19,6 +20,7 @@ export const DEFAULT_PANEL_ORDER: DashboardPanelId[] = [
 
 export const DEFAULT_PANEL_SIZES: Record<DashboardPanelId, DashboardPanelSize> = {
   calendar: "normal",
+  monthly: "normal",
   daily: "tall",
   todo: "tall",
   database: "wide",
@@ -26,11 +28,11 @@ export const DEFAULT_PANEL_SIZES: Record<DashboardPanelId, DashboardPanelSize> =
 };
 
 export const DEFAULT_SETTINGS: DashboardSettings = {
-  dailyFolder: "Daily",
+  dailyFolder: "Daily/YYYY/MM",
   dailyDateFormat: "YYYY-MM-DD",
   projectFolder: "Projects",
-  articleFolder: "Articles",
-  bookFolder: "Books",
+  articleFolder: "Library/Articles",
+  bookFolder: "Library/Books",
   defaultTaskSection: "今日todo",
   pomodoroMinutes: 25,
   openOnStartup: false,

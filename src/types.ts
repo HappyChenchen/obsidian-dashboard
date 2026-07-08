@@ -1,6 +1,12 @@
 import type { TFile } from "obsidian";
 
-export type DashboardPanelId = "calendar" | "daily" | "todo" | "database" | "projects";
+export type DashboardPanelId =
+  | "calendar"
+  | "monthly"
+  | "daily"
+  | "todo"
+  | "database"
+  | "projects";
 export type DashboardPanelSize = "compact" | "normal" | "wide" | "tall" | "large";
 
 export interface DashboardSettings {
@@ -60,6 +66,7 @@ export interface DashboardData {
   dailySections: DailySection[];
   tasks: DashboardTask[];
   allTasks: DashboardTask[];
+  dailyDates: Set<string>;
   calendarCounts: Map<string, number>;
   projects: ProjectSummary[];
   articles: LibraryItem[];

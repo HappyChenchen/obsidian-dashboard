@@ -173,6 +173,7 @@ export default class DashboardPlugin extends Plugin {
 
     const files = this.app.vault.getMarkdownFiles();
     const tasks: DashboardTask[] = [];
+    const dailyDates = new Set<string>();
     const dailyTodosByDate = new Map<string, DashboardTask[]>();
     const projects: ProjectSummary[] = [];
     const articles: LibraryItem[] = [];
@@ -188,6 +189,7 @@ export default class DashboardPlugin extends Plugin {
 
       const dailyDate = this.getDateFromDailyFile(file);
       if (dailyDate) {
+        dailyDates.add(dailyDate);
         const dailySectionsForFile = extractDailySections(content);
         const dailyTodos = extractTasksFromHeading(
           content,
@@ -252,6 +254,7 @@ export default class DashboardPlugin extends Plugin {
       dailySections,
       tasks: allOpenTasks.slice(0, 30),
       allTasks: allOpenTasks,
+      dailyDates,
       calendarCounts,
       projects: projects.sort((a, b) => b.updated - a.updated).slice(0, 10),
       articles: articles.sort((a, b) => b.updated - a.updated).slice(0, 8),
@@ -475,6 +478,11 @@ class DashboardView extends ItemView {
   ) {
     if (panelId === "calendar") {
       await this.renderCalendar(root, data);
+      return;
+    }
+
+    if (panelId === "monthly") {
+      this.renderMonthlyDiary(root, data);
       return;
     }
 
@@ -764,6 +772,51 @@ class DashboardView extends ItemView {
       const metaText = task.due ? task.due : `来源：${task.file.basename}`;
       body.createEl("small", { text: metaText }).addEventListener("click", () => {
         this.plugin.openFile(task.file);
+      });
+    }
+  }
+
+  private renderMonthlyDiary(root: HTMLElement, data: DashboardData) {
+    const card = createCard(root, "月度日记", "is-monthly", "monthly", this);
+    const month = moment();
+    const today = moment().format("YYYY-MM-DD");
+    const firstDay = month.clone().startOf("month");
+    const daysInMonth = month.daysInMonth();
+    const writtenDates = Array.from(data.dailyDates).filter((date) =>
+      moment(date, "YYYY-MM-DD", true).isSame(month, "month"),
+    );
+
+    const meta = card.createDiv({ cls: "dashboard-home__month-meta" });
+    meta.createEl("span", { text: month.format("YYYY 年 M 月") });
+    meta.createEl("strong", { text: `${writtenDates.length}/${daysInMonth}` });
+
+    const grid = card.createDiv({ cls: "dashboard-home__month-grid" });
+    for (const dayName of ["日", "一", "二", "三", "四", "五", "六"]) {
+      grid.createDiv({ cls: "dashboard-home__month-weekday", text: dayName });
+    }
+
+    for (let index = 0; index < firstDay.day(); index += 1) {
+      grid.createDiv({ cls: "dashboard-home__month-empty" });
+    }
+
+    for (let day = 1; day <= daysInMonth; day += 1) {
+      const date = month.clone().date(day).format("YYYY-MM-DD");
+      const hasNote = data.dailyDates.has(date);
+      const cell = grid.createEl("button", {
+        cls: [
+          "dashboard-home__month-day",
+          hasNote ? "has-note" : "",
+          date === today ? "is-today" : "",
+        ].join(" "),
+        attr: {
+          type: "button",
+          title: hasNote ? "打开日记" : "创建日记",
+        },
+      });
+      cell.createEl("span", { text: String(day) });
+      cell.addEventListener("click", async () => {
+        const file = await this.plugin.ensureDailyNote(date);
+        await this.plugin.openFile(file);
       });
     }
   }
@@ -1096,7 +1149,15 @@ function normalizePanelOrder(panelOrder: unknown): DashboardPanelId[] {
 
   for (const panelId of DEFAULT_PANEL_ORDER) {
     if (!normalized.includes(panelId)) {
-      normalized.push(panelId);
+      const insertBefore = DEFAULT_PANEL_ORDER.slice(
+        DEFAULT_PANEL_ORDER.indexOf(panelId) + 1,
+      ).find((nextPanelId) => normalized.includes(nextPanelId));
+      const insertIndex = insertBefore ? normalized.indexOf(insertBefore) : -1;
+      if (insertIndex === -1) {
+        normalized.push(panelId);
+      } else {
+        normalized.splice(insertIndex, 0, panelId);
+      }
     }
   }
 
