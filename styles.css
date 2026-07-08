@@ -7,7 +7,7 @@
   box-sizing: border-box;
   margin: 0 auto;
   max-width: 1380px;
-  padding: 28px 36px 28px 28px;
+  padding: 32px 64px 32px 48px;
   width: 100%;
 }
 
@@ -213,7 +213,7 @@
   box-sizing: border-box;
   margin: 0 auto;
   max-width: 1280px;
-  padding: 28px 36px 32px 28px;
+  padding: 32px 64px 36px 48px;
   width: 100%;
 }
 
@@ -714,7 +714,7 @@
 @media (max-width: 720px) {
   .dashboard-home,
   .dashboard-monthly-panel {
-    padding: 16px 18px 16px 16px;
+    padding: 18px 26px 18px 22px;
   }
 
   .dashboard-home__header,
