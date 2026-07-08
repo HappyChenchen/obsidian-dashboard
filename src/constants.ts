@@ -18,7 +18,7 @@ export const DEFAULT_PANEL_ORDER: DashboardPanelId[] = [
 ];
 
 export const DEFAULT_PANEL_SIZES: Record<DashboardPanelId, DashboardPanelSize> = {
-  calendar: "wide",
+  calendar: "normal",
   daily: "tall",
   todo: "tall",
   database: "wide",
