@@ -260,10 +260,30 @@
 }
 
 .dashboard-monthly-panel__actions {
+  align-items: flex-end;
+  display: flex;
+  flex-direction: column;
+  flex-wrap: wrap;
+  gap: 8px;
+  justify-content: flex-end;
+}
+
+.dashboard-monthly-panel__filters,
+.dashboard-monthly-panel__nav {
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
   justify-content: flex-end;
+}
+
+.dashboard-monthly-panel__filters button {
+  background: transparent;
+}
+
+.dashboard-monthly-panel__filters button.is-active {
+  background: var(--interactive-accent);
+  border-color: var(--interactive-accent);
+  color: var(--text-on-accent);
 }
 
 .dashboard-monthly-panel__grid {
@@ -280,7 +300,7 @@
 
 .dashboard-monthly-panel__empty,
 .dashboard-monthly-panel__day {
-  min-height: 122px;
+  min-height: 132px;
   min-width: 0;
 }
 
@@ -328,6 +348,50 @@
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.dashboard-monthly-panel__block {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 0;
+}
+
+.dashboard-monthly-panel__block-label {
+  color: var(--text-accent);
+  font-size: 10px;
+  font-weight: 700;
+  line-height: 1.2;
+}
+
+.dashboard-monthly-panel__line {
+  align-items: flex-start;
+  color: var(--text-normal);
+  display: flex;
+  gap: 4px;
+  min-width: 0;
+}
+
+.dashboard-monthly-panel__line span {
+  color: var(--text-muted);
+  flex: 0 0 auto;
+  font-size: 10px;
+  line-height: 1.35;
+}
+
+.dashboard-monthly-panel__line strong {
+  display: -webkit-box;
+  font-size: 11px;
+  font-weight: 500;
+  line-height: 1.35;
+  overflow: hidden;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+}
+
+.dashboard-monthly-panel__line.is-done strong {
+  color: var(--text-muted);
+  text-decoration: line-through;
 }
 
 .dashboard-monthly-panel__snippet {
@@ -734,6 +798,12 @@
   }
 
   .dashboard-monthly-panel__actions {
+    align-items: flex-start;
+    justify-content: flex-start;
+  }
+
+  .dashboard-monthly-panel__filters,
+  .dashboard-monthly-panel__nav {
     justify-content: flex-start;
   }
 
@@ -743,7 +813,7 @@
 
   .dashboard-monthly-panel__empty,
   .dashboard-monthly-panel__day {
-    min-height: 86px;
+    min-height: 96px;
   }
 
   .dashboard-monthly-panel__day {

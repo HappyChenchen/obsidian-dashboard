@@ -62,11 +62,17 @@ export interface RecentThought {
 export interface DailyMonthSummary {
   date: string;
   file?: TFile;
+  todos: DashboardTask[];
+  todoText: string;
   inspiration: string;
+  relatedNotes: string;
+  readingNotes: string;
   mood: string;
   efficiency: string;
   review: string;
 }
+
+export type MonthlyDiaryFilter = "all" | "todo" | "inspiration" | "notes";
 
 export interface DashboardData {
   today: string;

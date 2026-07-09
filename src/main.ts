@@ -47,9 +47,17 @@ import type {
   DashboardSettings,
   DashboardTask,
   LibraryItem,
+  MonthlyDiaryFilter,
   ProjectSummary,
   RecentThought,
 } from "./types";
+
+const MONTHLY_DIARY_FILTERS: Array<{ id: MonthlyDiaryFilter; label: string }> = [
+  { id: "all", label: "全部" },
+  { id: "todo", label: "Todo" },
+  { id: "inspiration", label: "灵感" },
+  { id: "notes", label: "笔记" },
+];
 
 export default class DashboardPlugin extends Plugin {
   settings: DashboardSettings = DEFAULT_SETTINGS;
@@ -342,7 +350,11 @@ export default class DashboardPlugin extends Plugin {
       if (!file) {
         summaries.push({
           date,
+          todos: [],
+          todoText: "",
           inspiration: "",
+          relatedNotes: "",
+          readingNotes: "",
           mood: "",
           efficiency: "",
           review: "",
@@ -357,7 +369,11 @@ export default class DashboardPlugin extends Plugin {
       summaries.push({
         date,
         file,
+        todos: extractTasksFromHeading(content, file, this.settings.defaultTaskSection),
+        todoText: getPlainSectionText(sections, [this.settings.defaultTaskSection]),
         inspiration: getDailyText(sections, ["今日灵感", "灵感", "想法/思考"]),
+        relatedNotes: getDailyText(sections, ["今日关联笔记", "关联笔记"]),
+        readingNotes: getDailyText(sections, ["读书笔记", "阅读笔记"]),
         mood: getDailyValue(frontmatter, sections, ["mood", "心情", "today_mood"], [
           "今日心情",
           "心情",
@@ -1039,6 +1055,7 @@ class DashboardView extends ItemView {
 class MonthlyDiaryView extends ItemView {
   private plugin: DashboardPlugin;
   private month = moment().format("YYYY-MM");
+  private filter: MonthlyDiaryFilter = "all";
 
   constructor(leaf: WorkspaceLeaf, plugin: DashboardPlugin) {
     super(leaf);
@@ -1095,20 +1112,33 @@ class MonthlyDiaryView extends ItemView {
     });
 
     const actions = header.createDiv({ cls: "dashboard-monthly-panel__actions" });
-    const previous = actions.createEl("button", { text: "上月" });
+    const filters = actions.createDiv({ cls: "dashboard-monthly-panel__filters" });
+    for (const filter of MONTHLY_DIARY_FILTERS) {
+      const button = filters.createEl("button", {
+        cls: filter.id === this.filter ? "is-active" : "",
+        text: filter.label,
+      });
+      button.addEventListener("click", async () => {
+        this.filter = filter.id;
+        await this.render();
+      });
+    }
+
+    const navigation = actions.createDiv({ cls: "dashboard-monthly-panel__nav" });
+    const previous = navigation.createEl("button", { text: "上月" });
     previous.addEventListener("click", () => {
       this.setMonth(month.clone().subtract(1, "month").format("YYYY-MM"));
     });
 
-    const current = actions.createEl("button", { text: "本月" });
+    const current = navigation.createEl("button", { text: "本月" });
     current.addEventListener("click", () => {
       this.setMonth(moment().format("YYYY-MM"));
     });
 
-    const refresh = actions.createEl("button", { text: "刷新" });
+    const refresh = navigation.createEl("button", { text: "刷新" });
     refresh.addEventListener("click", () => this.render());
 
-    const next = actions.createEl("button", { text: "下月" });
+    const next = navigation.createEl("button", { text: "下月" });
     next.addEventListener("click", () => {
       this.setMonth(month.clone().add(1, "month").format("YYYY-MM"));
     });
@@ -1138,7 +1168,11 @@ class MonthlyDiaryView extends ItemView {
       const summary = summaryByDate.get(date);
       const hasContent = Boolean(
         summary?.file ||
+          summary?.todos.length ||
+          summary?.todoText ||
           summary?.inspiration ||
+          summary?.relatedNotes ||
+          summary?.readingNotes ||
           summary?.mood ||
           summary?.efficiency ||
           summary?.review,
@@ -1163,20 +1197,76 @@ class MonthlyDiaryView extends ItemView {
         cellHeader.createEl("span", { text: summary.mood });
       }
 
-      if (summary?.inspiration) {
-        cell.createDiv({
-          cls: "dashboard-monthly-panel__snippet",
-          text: truncateText(summary.inspiration, 90),
-        });
-      }
+      this.renderDayContent(cell, summary);
+    }
+  }
 
-      const meta = [summary?.efficiency, summary?.review].filter(Boolean).join(" · ");
-      if (meta) {
-        cell.createDiv({
-          cls: "dashboard-monthly-panel__meta",
-          text: truncateText(meta, 70),
-        });
-      }
+  private renderDayContent(root: HTMLElement, summary: DailyMonthSummary | undefined) {
+    if (!summary) {
+      return;
+    }
+
+    if (this.filter === "todo") {
+      this.renderTodoLines(root, summary, false);
+      return;
+    }
+
+    if (this.filter === "inspiration") {
+      renderMonthlyTextBlock(root, "灵感", summary.inspiration, 120);
+      return;
+    }
+
+    if (this.filter === "notes") {
+      renderMonthlyTextBlock(root, "关联", summary.relatedNotes, 90);
+      renderMonthlyTextBlock(root, "读书", summary.readingNotes, 90);
+      return;
+    }
+
+    this.renderTodoLines(root, summary, true);
+    renderMonthlyTextBlock(root, "灵感", summary.inspiration, 76);
+    renderMonthlyTextBlock(root, "笔记", [summary.relatedNotes, summary.readingNotes].filter(Boolean).join("\n"), 70);
+
+    const meta = [summary.efficiency, summary.review].filter(Boolean).join(" · ");
+    if (meta) {
+      root.createDiv({
+        cls: "dashboard-monthly-panel__meta",
+        text: truncateText(meta, 64),
+      });
+    }
+  }
+
+  private renderTodoLines(
+    root: HTMLElement,
+    summary: DailyMonthSummary,
+    compact: boolean,
+  ) {
+    const plainLines = summary.todoText
+      .split("\n")
+      .map((line) => line.trim())
+      .filter(Boolean);
+    if (summary.todos.length === 0 && plainLines.length === 0) {
+      return;
+    }
+
+    const openTasks = summary.todos.filter((task) => !task.done);
+    const totalCount = summary.todos.length + plainLines.length;
+    const openCount = openTasks.length + plainLines.length;
+    const block = root.createDiv({ cls: "dashboard-monthly-panel__block" });
+    block.createEl("span", {
+      cls: "dashboard-monthly-panel__block-label",
+      text: compact ? `Todo ${openCount}/${totalCount}` : "Todo",
+    });
+
+    const visibleItems = [
+      ...summary.todos.map((task) => ({
+        done: task.done,
+        text: stripTaskMetadata(task.text),
+      })),
+      ...plainLines.map((line) => ({ done: false, text: line })),
+    ].slice(0, compact ? 1 : 3);
+
+    for (const item of visibleItems) {
+      renderMonthlyTodoLine(block, item.text, item.done, compact);
     }
   }
 }
@@ -1433,6 +1523,18 @@ function getDailyText(sections: DailySection[], headings: string[]): string {
   );
 }
 
+function getPlainSectionText(sections: DailySection[], headings: string[]): string {
+  const section = sections.find((dailySection) => headings.includes(dailySection.heading));
+  if (!section) {
+    return "";
+  }
+
+  return section.lines
+    .map((line) => line.trim())
+    .filter((line) => line && !/^- \[[ xX-]\]/.test(line))
+    .join("\n");
+}
+
 function getDailyValue(
   frontmatter: Record<string, unknown>,
   sections: DailySection[],
@@ -1450,6 +1552,48 @@ function getDailyValue(
   }
 
   return getDailyText(sections, headings);
+}
+
+function renderMonthlyTextBlock(
+  root: HTMLElement,
+  label: string,
+  value: string,
+  limit: number,
+) {
+  const text = value.trim();
+  if (!text) {
+    return;
+  }
+
+  const block = root.createDiv({ cls: "dashboard-monthly-panel__block" });
+  block.createEl("span", {
+    cls: "dashboard-monthly-panel__block-label",
+    text: label,
+  });
+  block.createDiv({
+    cls: "dashboard-monthly-panel__snippet",
+    text: truncateText(text, limit),
+  });
+}
+
+function renderMonthlyTodoLine(
+  root: HTMLElement,
+  text: string,
+  done: boolean,
+  compact: boolean,
+) {
+  const line = root.createDiv({
+    cls: [
+      "dashboard-monthly-panel__line",
+      done ? "is-done" : "",
+    ]
+      .filter(Boolean)
+      .join(" "),
+  });
+  line.createEl("span", { text: done ? "[x]" : "[ ]" });
+  line.createEl("strong", {
+    text: truncateText(text, compact ? 52 : 70),
+  });
 }
 
 function getSafeMonth(month: string): moment.Moment {
