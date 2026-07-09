@@ -264,25 +264,66 @@
   display: flex;
   flex-direction: column;
   flex-wrap: wrap;
-  gap: 8px;
+  gap: 6px;
   justify-content: flex-end;
 }
 
 .dashboard-monthly-panel__filters,
 .dashboard-monthly-panel__nav {
+  align-items: center;
   display: flex;
   flex-wrap: wrap;
-  gap: 8px;
+  gap: 2px;
   justify-content: flex-end;
+}
+
+.dashboard-monthly-panel__filters {
+  background: var(--background-secondary);
+  border: 1px solid var(--dashboard-monthly-border);
+  border-radius: 999px;
+  padding: 2px;
 }
 
 .dashboard-monthly-panel__filters button {
   background: transparent;
+  border: 0;
+  border-radius: 999px;
+  box-shadow: none;
+  color: var(--text-muted);
+  font-size: 12px;
+  line-height: 1;
+  min-height: 24px;
+  padding: 0 9px;
 }
 
 .dashboard-monthly-panel__filters button.is-active {
   background: var(--interactive-accent);
-  border-color: var(--interactive-accent);
+  color: var(--text-on-accent);
+}
+
+.dashboard-monthly-panel__nav {
+  gap: 4px;
+}
+
+.dashboard-monthly-panel__nav button {
+  background: transparent;
+  border: 0;
+  border-radius: 5px;
+  box-shadow: none;
+  color: var(--text-muted);
+  font-size: 12px;
+  min-height: 24px;
+  padding: 0 7px;
+}
+
+.dashboard-monthly-panel__nav button:hover,
+.dashboard-monthly-panel__filters button:hover {
+  background: var(--background-modifier-hover);
+  color: var(--text-normal);
+}
+
+.dashboard-monthly-panel__filters button.is-active:hover {
+  background: var(--interactive-accent);
   color: var(--text-on-accent);
 }
 
