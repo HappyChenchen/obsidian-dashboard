@@ -64,6 +64,50 @@ export function extractTasksFromHeading(
   return tasks;
 }
 
+export function extractLooseTasksFromHeading(
+  content: string,
+  file: TFile,
+  heading: string,
+): DashboardTask[] {
+  const lines = content.split("\n");
+  const headingPattern = new RegExp(`^##\\s+${escapeRegExp(heading)}\\s*$`, "i");
+  const headingIndex = lines.findIndex((line) => headingPattern.test(line));
+  if (headingIndex === -1) {
+    return [];
+  }
+
+  const tasks: DashboardTask[] = [];
+  for (let index = headingIndex + 1; index < lines.length; index += 1) {
+    if (/^##\s+/.test(lines[index])) {
+      break;
+    }
+
+    const line = lines[index].trim();
+    if (!line) {
+      continue;
+    }
+
+    const checkbox = /^-\s+\[( |x|X|-)\]\s+(.+)$/.exec(line);
+    const text = checkbox ? checkbox[2].trim() : line.replace(/^[-*]\s+/, "").trim();
+    if (!text) {
+      continue;
+    }
+
+    tasks.push({
+      text,
+      done: checkbox ? checkbox[1].toLowerCase() === "x" : false,
+      due: extractDate(text),
+      file,
+      line: index,
+      tags: Array.from(text.matchAll(/#[\p{Letter}\p{Number}/_-]+/gu)).map(
+        (tag) => tag[0],
+      ),
+    });
+  }
+
+  return tasks;
+}
+
 export function getTasksForDate(
   date: string,
   dailyTodos: DashboardTask[],

@@ -63,7 +63,6 @@ export interface DailyMonthSummary {
   date: string;
   file?: TFile;
   todos: DashboardTask[];
-  todoText: string;
   inspiration: string;
   relatedNotes: string;
   readingNotes: string;

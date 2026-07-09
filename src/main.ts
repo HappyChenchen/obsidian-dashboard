@@ -33,8 +33,8 @@ import {
 import {
   compareTasksForDashboard,
   dedupeTasksByText,
+  extractLooseTasksFromHeading,
   extractTasks,
-  extractTasksFromHeading,
   getTasksForDate,
   stripTaskMetadata,
 } from "./tasks";
@@ -241,11 +241,12 @@ export default class DashboardPlugin extends Plugin {
       if (dailyDate) {
         dailyDates.add(dailyDate);
         const dailySectionsForFile = extractDailySections(content);
-        const dailyTodos = extractTasksFromHeading(
+        const dailyTodos = extractLooseTasksFromHeading(
           content,
           file,
           this.settings.defaultTaskSection,
         ).filter((task) => !task.done);
+        tasks.push(...dailyTodos);
         dailyTodosByDate.set(dailyDate, dailyTodos);
 
         const thoughtText = getSectionText(
@@ -351,7 +352,6 @@ export default class DashboardPlugin extends Plugin {
         summaries.push({
           date,
           todos: [],
-          todoText: "",
           inspiration: "",
           relatedNotes: "",
           readingNotes: "",
@@ -369,8 +369,7 @@ export default class DashboardPlugin extends Plugin {
       summaries.push({
         date,
         file,
-        todos: extractTasksFromHeading(content, file, this.settings.defaultTaskSection),
-        todoText: getPlainSectionText(sections, [this.settings.defaultTaskSection]),
+        todos: extractLooseTasksFromHeading(content, file, this.settings.defaultTaskSection),
         inspiration: getDailyText(sections, ["今日灵感", "灵感", "想法/思考"]),
         relatedNotes: getDailyText(sections, ["今日关联笔记", "关联笔记"]),
         readingNotes: getDailyText(sections, ["读书笔记", "阅读笔记"]),
@@ -402,7 +401,7 @@ export default class DashboardPlugin extends Plugin {
     }
 
     const content = await this.app.vault.cachedRead(file);
-    return extractTasksFromHeading(content, file, this.settings.defaultTaskSection);
+    return extractLooseTasksFromHeading(content, file, this.settings.defaultTaskSection);
   }
 
   async getTodosForDate(date: string, allTasks: DashboardTask[]): Promise<DashboardTask[]> {
@@ -501,10 +500,16 @@ export default class DashboardPlugin extends Plugin {
       return;
     }
 
-    lines[task.line] = line.replace(
-      /^(\s*-\s+\[)( |x|X|-)(\]\s+)/,
-      `$1${task.done ? " " : "x"}$3`,
-    );
+    if (/^(\s*-\s+\[)( |x|X|-)(\]\s+)/.test(line)) {
+      lines[task.line] = line.replace(
+        /^(\s*-\s+\[)( |x|X|-)(\]\s+)/,
+        `$1${task.done ? " " : "x"}$3`,
+      );
+    } else {
+      const indent = /^(\s*)/.exec(line)?.[1] ?? "";
+      const text = line.trim().replace(/^[-*]\s+/, "").trim();
+      lines[task.line] = `${indent}- [x] ${text}`;
+    }
     await this.app.vault.modify(task.file, lines.join("\n"));
   }
 
@@ -1169,7 +1174,6 @@ class MonthlyDiaryView extends ItemView {
       const hasContent = Boolean(
         summary?.file ||
           summary?.todos.length ||
-          summary?.todoText ||
           summary?.inspiration ||
           summary?.relatedNotes ||
           summary?.readingNotes ||
@@ -1240,30 +1244,23 @@ class MonthlyDiaryView extends ItemView {
     summary: DailyMonthSummary,
     compact: boolean,
   ) {
-    const plainLines = summary.todoText
-      .split("\n")
-      .map((line) => line.trim())
-      .filter(Boolean);
-    if (summary.todos.length === 0 && plainLines.length === 0) {
+    if (summary.todos.length === 0) {
       return;
     }
 
     const openTasks = summary.todos.filter((task) => !task.done);
-    const totalCount = summary.todos.length + plainLines.length;
-    const openCount = openTasks.length + plainLines.length;
     const block = root.createDiv({ cls: "dashboard-monthly-panel__block" });
     block.createEl("span", {
       cls: "dashboard-monthly-panel__block-label",
-      text: compact ? `Todo ${openCount}/${totalCount}` : "Todo",
+      text: compact ? `Todo ${openTasks.length}/${summary.todos.length}` : "Todo",
     });
 
-    const visibleItems = [
-      ...summary.todos.map((task) => ({
+    const visibleItems = summary.todos
+      .map((task) => ({
         done: task.done,
         text: stripTaskMetadata(task.text),
-      })),
-      ...plainLines.map((line) => ({ done: false, text: line })),
-    ].slice(0, compact ? 1 : 3);
+      }))
+      .slice(0, compact ? 1 : 3);
 
     for (const item of visibleItems) {
       renderMonthlyTodoLine(block, item.text, item.done, compact);
@@ -1521,18 +1518,6 @@ function getDailyText(sections: DailySection[], headings: string[]): string {
   return getSectionText(
     sections.find((section) => headings.includes(section.heading)),
   );
-}
-
-function getPlainSectionText(sections: DailySection[], headings: string[]): string {
-  const section = sections.find((dailySection) => headings.includes(dailySection.heading));
-  if (!section) {
-    return "";
-  }
-
-  return section.lines
-    .map((line) => line.trim())
-    .filter((line) => line && !/^- \[[ xX-]\]/.test(line))
-    .join("\n");
 }
 
 function getDailyValue(
