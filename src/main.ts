@@ -251,7 +251,7 @@ export default class DashboardPlugin extends Plugin {
         if (dailyDate <= today) {
           recentThoughts.push({
             date: dailyDate,
-            text: getRecentDailyPreview(dailySectionsForFile),
+            text: getRecentDailyPreview(content, dailySectionsForFile),
             file,
             updated: file.stat.mtime,
             tags: extractNoteTags(
@@ -1572,21 +1572,48 @@ function getDailyText(sections: DailySection[], headings: string[]): string {
   );
 }
 
-function getRecentDailyPreview(sections: DailySection[]): string {
-  const body = sections
+function getRecentDailyPreview(
+  content: string,
+  sections: DailySection[],
+): string {
+  const sectionBody = sections
     .map((section) => getSectionText(section))
     .filter(Boolean)
     .join(" ")
-    .replace(/!?\[\[[^\]]+\]\]/g, "")
-    .replace(/[-*]\s+\[[ xX-]\]\s*/g, "")
-    .replace(/\s+/g, " ")
-    .trim();
+  const body = sectionBody || extractRawDailyPreview(content);
 
   if (body) {
     return truncateText(body, 150);
   }
 
   return "";
+}
+
+function extractRawDailyPreview(content: string): string {
+  const lines = content.split("\n");
+  const bodyLines: string[] = [];
+  let inFrontmatter = false;
+
+  for (const rawLine of lines) {
+    const line = rawLine.trim();
+    if (line === "---" && bodyLines.length === 0) {
+      inFrontmatter = !inFrontmatter;
+      continue;
+    }
+    if (inFrontmatter || !line || /^#{1,6}\s+/.test(line)) {
+      continue;
+    }
+    bodyLines.push(line);
+  }
+
+  return bodyLines
+    .join(" ")
+    .replace(/<[^>]+>/g, " ")
+    .replace(/!?\[\[[^\]]+\]\]/g, "")
+    .replace(/[-*]\s+\[[ xX-]\]\s*/g, "")
+    .replace(/^[-*]\s+/gm, "")
+    .replace(/\s+/g, " ")
+    .trim();
 }
 
 function extractNoteTags(
