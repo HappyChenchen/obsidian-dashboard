@@ -24,7 +24,6 @@ import {
   ensureFolder,
   extractDailySections,
   formatDuration,
-  getFirstStaticDailyFolderSegment,
   getSectionText,
   isLibraryFile,
   isProjectFile,
@@ -215,7 +214,7 @@ export default class DashboardPlugin extends Plugin {
   }
 
   async collectData(): Promise<DashboardData> {
-    const today = moment().format(this.settings.dailyDateFormat);
+    const today = moment().format("YYYY-MM-DD");
     const todayFile = this.getDailyFile(today);
     const dailySections = todayFile
       ? extractDailySections(await this.app.vault.cachedRead(todayFile))
@@ -319,24 +318,41 @@ export default class DashboardPlugin extends Plugin {
   }
 
   getDailyFile(date: string): TFile | undefined {
+    const parsedDate = parseDashboardDate(date, this.settings.dailyDateFormat);
+    if (!parsedDate) {
+      return undefined;
+    }
+
+    const fileDate = parsedDate.format(this.settings.dailyDateFormat);
     const folder = renderDailyFolder(
       this.settings.dailyFolder,
-      date,
+      fileDate,
       this.settings.dailyDateFormat,
     );
-    const path = folder ? `${folder}/${date}.md` : `${date}.md`;
+    const path = folder ? `${folder}/${fileDate}.md` : `${fileDate}.md`;
     const file = this.app.vault.getAbstractFileByPath(path);
     return file instanceof TFile ? file : undefined;
   }
 
   getDateFromDailyFile(file: TFile): string | undefined {
-    const firstStaticSegment = getFirstStaticDailyFolderSegment(this.settings.dailyFolder);
-    if (firstStaticSegment && !file.path.startsWith(`${firstStaticSegment}/`)) {
+    const parsedDate = moment(file.basename, this.settings.dailyDateFormat, true);
+    if (!parsedDate.isValid()) {
       return undefined;
     }
 
-    const parsed = moment(file.basename, this.settings.dailyDateFormat, true);
-    return parsed.isValid() ? parsed.format("YYYY-MM-DD") : undefined;
+    const folder = renderDailyFolder(
+      this.settings.dailyFolder,
+      file.basename,
+      this.settings.dailyDateFormat,
+    );
+    const expectedPath = folder
+      ? `${folder}/${file.basename}.md`
+      : `${file.basename}.md`;
+    if (file.path !== expectedPath) {
+      return undefined;
+    }
+
+    return parsedDate.format("YYYY-MM-DD");
   }
 
   async collectDailyMonthSummaries(
@@ -346,7 +362,7 @@ export default class DashboardPlugin extends Plugin {
     const summaries: DailyMonthSummary[] = [];
 
     for (let day = 1; day <= safeMonth.daysInMonth(); day += 1) {
-      const date = safeMonth.clone().date(day).format(this.settings.dailyDateFormat);
+      const date = safeMonth.clone().date(day).format("YYYY-MM-DD");
       const file = this.getDailyFile(date);
       if (!file) {
         summaries.push({
@@ -395,7 +411,15 @@ export default class DashboardPlugin extends Plugin {
   }
 
   async getDailyTodoTasks(date: string): Promise<DashboardTask[]> {
-    const file = this.getDailyFile(date);
+    const normalizedDate = parseDashboardDate(
+      date,
+      this.settings.dailyDateFormat,
+    )?.format("YYYY-MM-DD");
+    if (!normalizedDate) {
+      return [];
+    }
+
+    const file = this.getDailyFile(normalizedDate);
     if (!file) {
       return [];
     }
@@ -405,35 +429,48 @@ export default class DashboardPlugin extends Plugin {
   }
 
   async getTodosForDate(date: string, allTasks: DashboardTask[]): Promise<DashboardTask[]> {
-    const dailyTodos = await this.getDailyTodoTasks(
-      moment(date).format(this.settings.dailyDateFormat),
-    );
-    return getTasksForDate(date, dailyTodos, allTasks);
+    const normalizedDate = parseDashboardDate(
+      date,
+      this.settings.dailyDateFormat,
+    )?.format("YYYY-MM-DD");
+    if (!normalizedDate) {
+      return [];
+    }
+
+    const dailyTodos = await this.getDailyTodoTasks(normalizedDate);
+    return getTasksForDate(normalizedDate, dailyTodos, allTasks);
   }
 
-  async ensureDailyNote(date = moment().format(this.settings.dailyDateFormat)): Promise<TFile> {
-    const existing = this.getDailyFile(date);
+  async ensureDailyNote(date = moment().format("YYYY-MM-DD")): Promise<TFile> {
+    const parsedDate = parseDashboardDate(date, this.settings.dailyDateFormat);
+    if (!parsedDate) {
+      throw new Error(`Invalid daily note date: ${date}`);
+    }
+
+    const isoDate = parsedDate.format("YYYY-MM-DD");
+    const fileDate = parsedDate.format(this.settings.dailyDateFormat);
+    const existing = this.getDailyFile(isoDate);
     if (existing) {
       return existing;
     }
 
     const folder = renderDailyFolder(
       this.settings.dailyFolder,
-      date,
+      fileDate,
       this.settings.dailyDateFormat,
     );
     if (folder) {
       await ensureFolder(this.app, folder);
     }
 
-    const path = folder ? `${folder}/${date}.md` : `${date}.md`;
+    const path = folder ? `${folder}/${fileDate}.md` : `${fileDate}.md`;
     const content = [
       "---",
       "type: daily",
-      `date: ${date}`,
+      `date: ${isoDate}`,
       "---",
       "",
-      `# ${date}`,
+      `# ${isoDate}`,
       "",
       ...DAILY_TEMPLATE_SECTIONS.flatMap((heading) => [`## ${heading}`, ""]),
     ].join("\n");
@@ -1167,9 +1204,9 @@ class MonthlyDiaryView extends ItemView {
       grid.createDiv({ cls: "dashboard-monthly-panel__empty" });
     }
 
-    const today = moment().format(this.plugin.settings.dailyDateFormat);
+    const today = moment().format("YYYY-MM-DD");
     for (let day = 1; day <= month.daysInMonth(); day += 1) {
-      const date = month.clone().date(day).format(this.plugin.settings.dailyDateFormat);
+      const date = month.clone().date(day).format("YYYY-MM-DD");
       const summary = summaryByDate.get(date);
       const hasContent = Boolean(
         summary?.file ||
@@ -1584,6 +1621,20 @@ function renderMonthlyTodoLine(
 function getSafeMonth(month: string): moment.Moment {
   const parsed = moment(month, "YYYY-MM", true);
   return parsed.isValid() ? parsed : moment();
+}
+
+function parseDashboardDate(
+  date: string,
+  dailyDateFormat: string,
+): moment.Moment | undefined {
+  for (const format of Array.from(new Set(["YYYY-MM-DD", dailyDateFormat]))) {
+    const parsed = moment(date, format, true);
+    if (parsed.isValid()) {
+      return parsed;
+    }
+  }
+
+  return undefined;
 }
 
 function buildQuickTaskLine(text: string): string | undefined {
