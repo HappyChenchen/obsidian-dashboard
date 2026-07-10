@@ -13,6 +13,7 @@ import {
   DAILY_TEMPLATE_SECTIONS,
   DEFAULT_PANEL_ORDER,
   DEFAULT_PANEL_SIZES,
+  DEFAULT_VISIBLE_PANELS,
   DEFAULT_SETTINGS,
   VIEW_TYPE_DASHBOARD,
   VIEW_TYPE_MONTHLY_DIARY,
@@ -130,6 +131,7 @@ export default class DashboardPlugin extends Plugin {
     this.settings = { ...DEFAULT_SETTINGS, ...(await this.loadData()) };
     this.settings.panelOrder = normalizePanelOrder(this.settings.panelOrder);
     this.settings.panelSizes = normalizePanelSizes(this.settings.panelSizes);
+    this.settings.visiblePanels = normalizePanelVisibility(this.settings.visiblePanels);
   }
 
   async saveSettings() {
@@ -155,6 +157,18 @@ export default class DashboardPlugin extends Plugin {
     this.settings.panelSizes = {
       ...normalizePanelSizes(this.settings.panelSizes),
       [panelId]: size,
+    };
+    await this.saveSettings();
+  }
+
+  isPanelVisible(panelId: DashboardPanelId): boolean {
+    return normalizePanelVisibility(this.settings.visiblePanels)[panelId];
+  }
+
+  async setPanelVisibility(panelId: DashboardPanelId, visible: boolean) {
+    this.settings.visiblePanels = {
+      ...normalizePanelVisibility(this.settings.visiblePanels),
+      [panelId]: visible,
     };
     await this.saveSettings();
   }
@@ -616,7 +630,9 @@ class DashboardView extends ItemView {
 
     const grid = root.createDiv({ cls: "dashboard-home__grid" });
 
-    for (const panelId of normalizePanelOrder(this.plugin.settings.panelOrder)) {
+    for (const panelId of normalizePanelOrder(this.plugin.settings.panelOrder).filter(
+      (panelId) => this.plugin.isPanelVisible(panelId),
+    )) {
       await this.renderPanel(grid, data, panelId);
     }
   }
@@ -638,6 +654,11 @@ class DashboardView extends ItemView {
 
     if (panelId === "todo") {
       this.renderTasks(root, data);
+      return;
+    }
+
+    if (panelId === "reading") {
+      this.renderReading(root, data);
       return;
     }
 
@@ -953,7 +974,7 @@ class DashboardView extends ItemView {
     if (data.projects.length === 0) {
       card.createEl("p", {
         cls: "dashboard-home__muted",
-        text: "No project notes found.",
+        text: "还没有项目笔记。",
       });
       return;
     }
@@ -975,7 +996,7 @@ class DashboardView extends ItemView {
   }
 
   private renderDatabase(root: HTMLElement, data: DashboardData) {
-    const card = createCard(root, "数据库", "is-database", "database", this);
+    const card = createCard(root, "资料库", "is-database", "database", this);
     const items = [...data.articles, ...data.books]
       .sort((a, b) => b.updated - a.updated)
       .slice(0, 10);
@@ -1001,6 +1022,38 @@ class DashboardView extends ItemView {
       });
       row.createEl("span", { text: item.kind === "book" ? "书籍" : "文章" });
       row.createEl("small", { text: item.status });
+    }
+  }
+
+  private renderReading(root: HTMLElement, data: DashboardData) {
+    const card = createCard(root, "正在阅读", "is-reading", "reading", this);
+    const books = data.books
+      .filter((book) => book.status.toLowerCase() === "reading")
+      .slice(0, 4);
+
+    if (books.length === 0) {
+      card.createEl("p", {
+        cls: "dashboard-home__muted",
+        text: "还没有正在阅读的书。",
+      });
+      return;
+    }
+
+    for (const book of books) {
+      const row = card.createDiv({ cls: "dashboard-home__reading-item" });
+      const heading = row.createDiv({ cls: "dashboard-home__project-heading" });
+      heading.createEl("button", { text: book.title }).addEventListener("click", () => {
+        this.plugin.openFile(book.file);
+      });
+      heading.createEl("span", {
+        text: book.progress > 0 ? `${book.progress}%` : "待记录",
+      });
+
+      const bar = row.createDiv({ cls: "dashboard-home__progress" });
+      bar.createDiv({
+        cls: "dashboard-home__progress-fill",
+        attr: { style: `width: ${book.progress}%` },
+      });
     }
   }
 
@@ -1395,7 +1448,29 @@ class DashboardSettingTab extends PluginSettingTab {
           .setValue(this.plugin.settings.bookFolder)
           .onChange(async (value) => {
             this.plugin.settings.bookFolder = value;
-            await this.plugin.saveSettings();
+          await this.plugin.saveSettings();
+          }),
+      );
+
+    new Setting(containerEl)
+      .setName("Show library panel")
+      .setDesc("Show the optional library table on the dashboard.")
+      .addToggle((toggle) =>
+        toggle
+          .setValue(this.plugin.isPanelVisible("database"))
+          .onChange(async (value) => {
+            await this.plugin.setPanelVisibility("database", value);
+          }),
+      );
+
+    new Setting(containerEl)
+      .setName("Show projects panel")
+      .setDesc("Show the optional projects panel on the dashboard.")
+      .addToggle((toggle) =>
+        toggle
+          .setValue(this.plugin.isPanelVisible("projects"))
+          .onChange(async (value) => {
+            await this.plugin.setPanelVisibility("projects", value);
           }),
       );
 
@@ -1521,6 +1596,24 @@ function normalizePanelSizes(
     const size = source[panelId];
     if (size && validSizes.has(size)) {
       normalized[panelId] = size;
+    }
+  }
+
+  return normalized;
+}
+
+function normalizePanelVisibility(
+  visiblePanels: unknown,
+): Record<DashboardPanelId, boolean> {
+  const source =
+    visiblePanels && typeof visiblePanels === "object"
+      ? (visiblePanels as Partial<Record<DashboardPanelId, boolean>>)
+      : {};
+  const normalized = { ...DEFAULT_VISIBLE_PANELS };
+
+  for (const panelId of DEFAULT_PANEL_ORDER) {
+    if (typeof source[panelId] === "boolean") {
+      normalized[panelId] = source[panelId] as boolean;
     }
   }
 

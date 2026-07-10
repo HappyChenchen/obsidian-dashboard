@@ -45,6 +45,10 @@ export function isProjectFile(
   frontmatter: Record<string, unknown>,
   folder: string,
 ): boolean {
+  if (isReadmeFile(file)) {
+    return false;
+  }
+
   const type = String(frontmatter.type ?? "").toLowerCase();
   return isInFolder(file, folder) || type === "project";
 }
@@ -73,6 +77,10 @@ export function isLibraryFile(
   folder: string,
   kind: "article" | "book",
 ): boolean {
+  if (isReadmeFile(file)) {
+    return false;
+  }
+
   const type = String(frontmatter.type ?? "").toLowerCase();
   const tags = normalizeTags(frontmatter.tags);
   return isInFolder(file, folder) || type === kind || tags.includes(kind);
@@ -89,6 +97,7 @@ export function buildLibraryItem(
     kind,
     status: String(frontmatter.status ?? (kind === "book" ? "reading" : "saved")),
     updated: file.stat.mtime,
+    progress: getReadingProgress(frontmatter),
   };
 }
 
@@ -204,6 +213,27 @@ function isInFolder(file: TFile, folder: string): boolean {
   return Boolean(normalized) && file.path.startsWith(`${normalized}/`);
 }
 
+function isReadmeFile(file: TFile): boolean {
+  return file.basename.toLowerCase() === "readme";
+}
+
+function getReadingProgress(frontmatter: Record<string, unknown>): number {
+  const directProgress = Number(
+    frontmatter.progress ?? frontmatter.reading_progress,
+  );
+  if (Number.isFinite(directProgress)) {
+    return Math.min(100, Math.max(0, Math.round(directProgress)));
+  }
+
+  const currentPage = Number(frontmatter.current_page);
+  const totalPages = Number(frontmatter.total_pages);
+  if (Number.isFinite(currentPage) && Number.isFinite(totalPages) && totalPages > 0) {
+    return Math.min(100, Math.max(0, Math.round((currentPage / totalPages) * 100)));
+  }
+
+  return 0;
+}
+
 function isDateFolderSegment(segment: string): boolean {
   return /^(Y{2,4}|M{1,2}|D{1,2}|[-_.\s])+$/.test(segment);
 }
@@ -211,4 +241,3 @@ function isDateFolderSegment(segment: string): boolean {
 function escapeRegExp(value: string): string {
   return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
-

@@ -4,6 +4,7 @@ export type DashboardPanelId =
   | "calendar"
   | "daily"
   | "todo"
+  | "reading"
   | "database"
   | "projects";
 export type DashboardPanelSize = "compact" | "normal" | "wide" | "tall" | "large";
@@ -19,6 +20,7 @@ export interface DashboardSettings {
   openOnStartup: boolean;
   panelOrder: DashboardPanelId[];
   panelSizes: Record<DashboardPanelId, DashboardPanelSize>;
+  visiblePanels: Record<DashboardPanelId, boolean>;
 }
 
 export interface DashboardTask {
@@ -50,6 +52,7 @@ export interface LibraryItem {
   kind: "article" | "book";
   status: string;
   updated: number;
+  progress: number;
 }
 
 export interface RecentThought {

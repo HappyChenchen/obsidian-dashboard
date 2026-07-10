@@ -14,6 +14,7 @@ export const DEFAULT_PANEL_ORDER: DashboardPanelId[] = [
   "calendar",
   "daily",
   "todo",
+  "reading",
   "database",
   "projects",
 ];
@@ -22,8 +23,18 @@ export const DEFAULT_PANEL_SIZES: Record<DashboardPanelId, DashboardPanelSize> =
   calendar: "normal",
   daily: "tall",
   todo: "tall",
+  reading: "normal",
   database: "wide",
   projects: "normal",
+};
+
+export const DEFAULT_VISIBLE_PANELS: Record<DashboardPanelId, boolean> = {
+  calendar: true,
+  daily: true,
+  todo: true,
+  reading: true,
+  database: false,
+  projects: false,
 };
 
 export const DEFAULT_SETTINGS: DashboardSettings = {
@@ -37,4 +48,5 @@ export const DEFAULT_SETTINGS: DashboardSettings = {
   openOnStartup: false,
   panelOrder: DEFAULT_PANEL_ORDER,
   panelSizes: DEFAULT_PANEL_SIZES,
+  visiblePanels: DEFAULT_VISIBLE_PANELS,
 };
