@@ -251,10 +251,7 @@ export default class DashboardPlugin extends Plugin {
         if (dailyDate <= today) {
           recentThoughts.push({
             date: dailyDate,
-            text: getRecentDailyPreview(
-              dailySectionsForFile,
-              this.settings.defaultTaskSection,
-            ),
+            text: getRecentDailyPreview(dailySectionsForFile),
             file,
             updated: file.stat.mtime,
             tags: extractNoteTags(
@@ -1575,22 +1572,18 @@ function getDailyText(sections: DailySection[], headings: string[]): string {
   );
 }
 
-function getRecentDailyPreview(
-  sections: DailySection[],
-  taskHeading: string,
-): string {
-  const headings = [
-    ["今日灵感", "灵感", "想法/思考"],
-    ["今日关联笔记", "关联笔记"],
-    ["读书笔记", "阅读笔记"],
-    [taskHeading],
-  ];
+function getRecentDailyPreview(sections: DailySection[]): string {
+  const body = sections
+    .map((section) => getSectionText(section))
+    .filter(Boolean)
+    .join(" ")
+    .replace(/!?\[\[[^\]]+\]\]/g, "")
+    .replace(/[-*]\s+\[[ xX-]\]\s*/g, "")
+    .replace(/\s+/g, " ")
+    .trim();
 
-  for (const candidates of headings) {
-    const text = getDailyText(sections, candidates);
-    if (text) {
-      return truncateText(text, 150);
-    }
+  if (body) {
+    return truncateText(body, 150);
   }
 
   return "";
