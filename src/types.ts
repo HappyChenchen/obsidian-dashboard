@@ -57,6 +57,7 @@ export interface RecentThought {
   text: string;
   file: TFile;
   updated: number;
+  tags: string[];
 }
 
 export interface DailyMonthSummary {

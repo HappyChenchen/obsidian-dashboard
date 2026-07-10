@@ -564,7 +564,9 @@
 
 .dashboard-home__embedded-thoughts {
   border-top: 1px solid var(--dashboard-border);
+  max-height: 320px;
   margin-top: 14px;
+  overflow-y: auto;
   padding-top: 12px;
 }
 
@@ -605,11 +607,24 @@
   font-size: 12px;
 }
 
+.dashboard-home__thought-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-left: auto;
+}
+
+.dashboard-home__thought-tags span {
+  color: var(--text-accent);
+  font-size: 11px;
+}
+
 .dashboard-home__thought-item p {
   color: var(--text-muted);
   font-size: 13px;
   line-height: 1.45;
   margin: 0;
+  white-space: pre-wrap;
 }
 
 .dashboard-home__task {

@@ -248,17 +248,20 @@ export default class DashboardPlugin extends Plugin {
         tasks.push(...dailyTodos);
         dailyTodosByDate.set(dailyDate, dailyTodos);
 
-        const thoughtText = getSectionText(
-          dailySectionsForFile.find((section) =>
-            ["今日灵感", "灵感", "想法/思考"].includes(section.heading),
-          ),
-        );
-        if (thoughtText) {
+        if (dailyDate <= today) {
           recentThoughts.push({
             date: dailyDate,
-            text: thoughtText,
+            text: getRecentDailyPreview(
+              dailySectionsForFile,
+              this.settings.defaultTaskSection,
+            ),
             file,
             updated: file.stat.mtime,
+            tags: extractNoteTags(
+              content,
+              frontmatter,
+              cache?.tags?.map((tag) => tag.tag) ?? [],
+            ),
           });
         }
       }
@@ -312,8 +315,7 @@ export default class DashboardPlugin extends Plugin {
       articles: articles.sort((a, b) => b.updated - a.updated).slice(0, 8),
       books: books.sort((a, b) => b.updated - a.updated).slice(0, 8),
       recentThoughts: recentThoughts
-        .sort((a, b) => b.date.localeCompare(a.date) || b.updated - a.updated)
-        .slice(0, 6),
+        .sort((a, b) => b.date.localeCompare(a.date) || b.updated - a.updated),
     };
   }
 
@@ -811,25 +813,40 @@ class DashboardView extends ItemView {
   private renderRecentThoughts(root: HTMLElement, data: DashboardData, embedded = false) {
     const container = embedded
       ? root.createDiv({ cls: "dashboard-home__embedded-thoughts" })
-      : createCard(root, "近期灵感", "is-thoughts");
+      : createCard(root, "近期笔记", "is-thoughts");
 
     if (embedded) {
-      container.createEl("h3", { text: "近期灵感" });
+      container.createEl("h3", { text: "近期笔记" });
     }
 
     if (data.recentThoughts.length === 0) {
-      container.createEl("p", { cls: "dashboard-home__muted", text: "还没有想法/思考记录。" });
+      container.createEl("p", { cls: "dashboard-home__muted", text: "还没有 Daily 笔记。" });
       return;
     }
 
-    for (const thought of data.recentThoughts.slice(0, embedded ? 3 : 4)) {
+    for (const thought of data.recentThoughts) {
       const item = container.createDiv({ cls: "dashboard-home__thought-item" });
-      item.addEventListener("click", () => this.plugin.openFile(thought.file));
+      item.setAttr("role", "button");
+      item.setAttr("tabindex", "0");
+      const openNote = () => this.plugin.openFile(thought.file);
+      item.addEventListener("click", openNote);
+      item.addEventListener("keydown", (event) => {
+        if (event.key === "Enter" || event.key === " ") {
+          event.preventDefault();
+          openNote();
+        }
+      });
       const heading = item.createDiv({ cls: "dashboard-home__thought-heading" });
       heading.createEl("span", {
         text: moment(thought.date).format("MM-DD"),
       });
-      item.createEl("p", { text: truncateText(thought.text, 150) });
+      const tags = heading.createDiv({ cls: "dashboard-home__thought-tags" });
+      for (const tag of thought.tags) {
+        tags.createEl("span", { text: `#${tag}` });
+      }
+      item.createEl("p", {
+        text: thought.text || "暂无记录",
+      });
     }
   }
 
@@ -1556,6 +1573,48 @@ function getDailyText(sections: DailySection[], headings: string[]): string {
   return getSectionText(
     sections.find((section) => headings.includes(section.heading)),
   );
+}
+
+function getRecentDailyPreview(
+  sections: DailySection[],
+  taskHeading: string,
+): string {
+  const headings = [
+    ["今日灵感", "灵感", "想法/思考"],
+    ["今日关联笔记", "关联笔记"],
+    ["读书笔记", "阅读笔记"],
+    [taskHeading],
+  ];
+
+  for (const candidates of headings) {
+    const text = getDailyText(sections, candidates);
+    if (text) {
+      return truncateText(text, 150);
+    }
+  }
+
+  return "";
+}
+
+function extractNoteTags(
+  content: string,
+  frontmatter: Record<string, unknown>,
+  metadataTags: string[],
+): string[] {
+  const frontmatterValue = frontmatter.tags;
+  const frontmatterTags = Array.isArray(frontmatterValue)
+    ? frontmatterValue.map((tag) => String(tag))
+    : typeof frontmatterValue === "string"
+      ? frontmatterValue.split(/[\s,]+/)
+      : [];
+  const inlineTags = Array.from(
+    content.matchAll(/#[\p{Letter}\p{Number}/_-]+/gu),
+  ).map((match) => match[0]);
+  const normalized = ["daily", ...frontmatterTags, ...metadataTags, ...inlineTags]
+    .map((tag) => tag.trim().replace(/^#/, "").toLowerCase())
+    .filter(Boolean);
+
+  return Array.from(new Set(normalized)).slice(0, 5);
 }
 
 function getDailyValue(
