@@ -505,7 +505,7 @@ export default class DashboardPlugin extends Plugin {
       taskLine,
     );
     await this.app.vault.modify(file, nextContent);
-    new Notice("Task added to today's daily note.");
+    new Notice("已记录到今天的 Todo。");
   }
 
   async appendPomodoroLog(minutes: number) {
@@ -528,7 +528,7 @@ export default class DashboardPlugin extends Plugin {
     );
 
     if (missingHeadings.length === 0) {
-      new Notice("Daily template is already complete.");
+      new Notice("今日模板已经完整。");
       return;
     }
 
@@ -539,7 +539,7 @@ export default class DashboardPlugin extends Plugin {
     ].join("\n");
 
     await this.app.vault.modify(file, nextContent);
-    new Notice("Daily template completed.");
+    new Notice("今日模板已补全。");
   }
 
   async toggleTask(task: DashboardTask) {
@@ -617,7 +617,7 @@ class DashboardView extends ItemView {
     const root = this.containerEl.children[1] as HTMLElement;
     root.empty();
     root.addClass("dashboard-home");
-    root.createDiv({ cls: "dashboard-home__loading", text: "Loading dashboard..." });
+    root.createDiv({ cls: "dashboard-home__loading", text: "正在加载首页…" });
 
     const data = await this.plugin.collectData();
     root.empty();
@@ -675,18 +675,18 @@ class DashboardView extends ItemView {
     const titleBlock = header.createDiv();
     titleBlock.createEl("p", {
       cls: "dashboard-home__eyebrow",
-      text: moment().format("dddd, MMMM D"),
+      text: moment().format("YYYY-MM-DD dddd"),
     });
     titleBlock.createEl("h1", { text: "My notes" });
 
     const actions = header.createDiv({ cls: "dashboard-home__actions" });
-    const openDaily = actions.createEl("button", { text: "Open daily" });
+    const openDaily = actions.createEl("button", { text: "打开今日笔记" });
     openDaily.addEventListener("click", async () => {
       const file = await this.plugin.ensureDailyNote(data.today);
       await this.plugin.openFile(file);
     });
 
-    const refresh = actions.createEl("button", { text: "Refresh" });
+    const refresh = actions.createEl("button", { text: "刷新" });
     refresh.addEventListener("click", () => this.render());
   }
 
@@ -714,13 +714,13 @@ class DashboardView extends ItemView {
 
   private renderPomodoro(root: HTMLElement) {
     const panel = root.createDiv({ cls: "dashboard-home__pomodoro" });
-    panel.createEl("span", { cls: "dashboard-home__pomodoro-label", text: "Focus" });
+    panel.createEl("span", { cls: "dashboard-home__pomodoro-label", text: "专注" });
     const timer = panel.createEl("strong", {
       text: formatDuration(this.pomodoroRemaining),
     });
 
     const start = panel.createEl("button", {
-      text: this.pomodoroRunning ? "Pause" : "Start",
+      text: this.pomodoroRunning ? "暂停" : "开始",
     });
     start.addEventListener("click", () => {
       if (this.pomodoroRunning) {
@@ -728,15 +728,15 @@ class DashboardView extends ItemView {
       } else {
         this.startPomodoro(timer, start);
       }
-      start.setText(this.pomodoroRunning ? "Pause" : "Start");
+      start.setText(this.pomodoroRunning ? "暂停" : "开始");
     });
 
-    const reset = panel.createEl("button", { text: "Reset" });
+    const reset = panel.createEl("button", { text: "重置" });
     reset.addEventListener("click", () => {
       this.pausePomodoro();
       this.pomodoroRemaining = this.plugin.settings.pomodoroMinutes * 60;
       timer.setText(formatDuration(this.pomodoroRemaining));
-      start.setText("Start");
+      start.setText("开始");
     });
   }
 
@@ -751,9 +751,9 @@ class DashboardView extends ItemView {
         this.pausePomodoro();
         this.pomodoroRemaining = this.plugin.settings.pomodoroMinutes * 60;
         timer.setText(formatDuration(this.pomodoroRemaining));
-        button.setText("Start");
+        button.setText("开始");
         await this.plugin.appendPomodoroLog(this.plugin.settings.pomodoroMinutes);
-        new Notice("Pomodoro complete.");
+        new Notice("番茄钟完成。");
       }
     }, 1000);
   }
@@ -774,7 +774,7 @@ class DashboardView extends ItemView {
       });
     });
 
-    const dateLabel = moment(data.today, this.plugin.settings.dailyDateFormat).format(
+    const dateLabel = moment(data.today, "YYYY-MM-DD", true).format(
       "YYYY-MM-DD",
     );
 
@@ -788,7 +788,8 @@ class DashboardView extends ItemView {
 
     card.createEl("p", {
       cls: "dashboard-home__file-meta",
-      text: `${dateLabel} · ${data.todayFile.path}`,
+      text: dateLabel,
+      attr: { title: data.todayFile.path },
     });
 
     const sectionsByHeading = new Map(
@@ -1215,7 +1216,7 @@ class MonthlyDiaryView extends ItemView {
     const titleGroup = header.createDiv();
     titleGroup.createEl("p", {
       cls: "dashboard-monthly-panel__eyebrow",
-      text: "Monthly diary",
+      text: "月度日记",
     });
     titleGroup.createEl("h1", {
       text: month.format("YYYY 年 M 月"),
@@ -1385,11 +1386,11 @@ class DashboardSettingTab extends PluginSettingTab {
     const { containerEl } = this;
     containerEl.empty();
 
-    containerEl.createEl("h2", { text: "Dashboard Home" });
+    containerEl.createEl("h2", { text: "首页设置" });
 
     new Setting(containerEl)
-      .setName("Daily folder")
-      .setDesc("Folder used for daily notes. Date-only path segments like YYYY or MM are expanded from the note date.")
+      .setName("Daily 文件夹")
+      .setDesc("Daily 笔记所在的文件夹，YYYY、MM 等日期片段会根据笔记日期展开。")
       .addText((text) =>
         text
           .setPlaceholder("daily/MM")
@@ -1401,8 +1402,8 @@ class DashboardSettingTab extends PluginSettingTab {
       );
 
     new Setting(containerEl)
-      .setName("Daily date format")
-      .setDesc("Moment.js format used to name daily notes.")
+      .setName("Daily 日期格式")
+      .setDesc("用于生成 Daily 文件名的日期格式。")
       .addText((text) =>
         text
           .setPlaceholder("YYYY-MM-DD")
@@ -1414,8 +1415,8 @@ class DashboardSettingTab extends PluginSettingTab {
       );
 
     new Setting(containerEl)
-      .setName("Project folder")
-      .setDesc("Notes in this folder are shown as projects.")
+      .setName("项目文件夹")
+      .setDesc("这个文件夹中的笔记会被识别为项目。")
       .addText((text) =>
         text
           .setPlaceholder("Projects")
@@ -1427,8 +1428,8 @@ class DashboardSettingTab extends PluginSettingTab {
       );
 
     new Setting(containerEl)
-      .setName("Article folder")
-      .setDesc("Notes in this folder are shown as saved articles.")
+      .setName("文章文件夹")
+      .setDesc("这个文件夹中的笔记会被识别为收藏文章。")
       .addText((text) =>
         text
           .setPlaceholder("Articles")
@@ -1440,8 +1441,8 @@ class DashboardSettingTab extends PluginSettingTab {
       );
 
     new Setting(containerEl)
-      .setName("Book folder")
-      .setDesc("Notes in this folder are shown as reading notes.")
+      .setName("书籍文件夹")
+      .setDesc("这个文件夹中的笔记会被识别为读书笔记。")
       .addText((text) =>
         text
           .setPlaceholder("Books")
@@ -1453,8 +1454,8 @@ class DashboardSettingTab extends PluginSettingTab {
       );
 
     new Setting(containerEl)
-      .setName("Show library panel")
-      .setDesc("Show the optional library table on the dashboard.")
+      .setName("显示资料库面板")
+      .setDesc("在首页显示可选的资料库表格。")
       .addToggle((toggle) =>
         toggle
           .setValue(this.plugin.isPanelVisible("database"))
@@ -1464,8 +1465,8 @@ class DashboardSettingTab extends PluginSettingTab {
       );
 
     new Setting(containerEl)
-      .setName("Show projects panel")
-      .setDesc("Show the optional projects panel on the dashboard.")
+      .setName("显示项目面板")
+      .setDesc("在首页显示可选的项目面板。")
       .addToggle((toggle) =>
         toggle
           .setValue(this.plugin.isPanelVisible("projects"))
@@ -1475,8 +1476,8 @@ class DashboardSettingTab extends PluginSettingTab {
       );
 
     new Setting(containerEl)
-      .setName("Default task section")
-      .setDesc("Quick-captured tasks are appended under this heading in the daily note.")
+      .setName("默认 Todo 标题")
+      .setDesc("快速记录的 Todo 会追加到 Daily 笔记的这个标题下。")
       .addText((text) =>
         text
           .setPlaceholder("今日todo")
@@ -1489,8 +1490,8 @@ class DashboardSettingTab extends PluginSettingTab {
       );
 
     new Setting(containerEl)
-      .setName("Pomodoro minutes")
-      .setDesc("Length of one focus session.")
+      .setName("番茄钟时长")
+      .setDesc("一次专注的时长。")
       .addSlider((slider) =>
         slider
           .setLimits(5, 60, 5)
@@ -1503,8 +1504,8 @@ class DashboardSettingTab extends PluginSettingTab {
       );
 
     new Setting(containerEl)
-      .setName("Open on startup")
-      .setDesc("Open the dashboard when Obsidian layout is ready.")
+      .setName("启动时打开首页")
+      .setDesc("Obsidian 布局准备完成后自动打开首页。")
       .addToggle((toggle) =>
         toggle.setValue(this.plugin.settings.openOnStartup).onChange(async (value) => {
           this.plugin.settings.openOnStartup = value;

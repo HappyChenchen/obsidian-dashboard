@@ -4,9 +4,10 @@
   --dashboard-surface: var(--background-secondary);
   --dashboard-surface-alt: var(--background-primary);
   --dashboard-text-muted: var(--text-muted);
+  --dashboard-radius: 8px;
   box-sizing: border-box;
   margin: 0 auto;
-  max-width: 1280px;
+  max-width: 1320px;
   padding: 36px max(88px, 6vw) 36px max(72px, 5vw);
   width: 100%;
 }
@@ -31,14 +32,17 @@
 
 .dashboard-home__header {
   align-items: center;
+  border-bottom: 1px solid var(--dashboard-border);
   display: flex;
   gap: 16px;
   justify-content: space-between;
-  margin-bottom: 14px;
+  margin-bottom: 18px;
+  padding-bottom: 14px;
 }
 
 .dashboard-home__header h1 {
-  font-size: 30px;
+  font-size: 32px;
+  font-weight: 700;
   line-height: 1.15;
   margin: 0;
 }
@@ -53,7 +57,14 @@
 
 .dashboard-home__actions {
   display: flex;
+  flex-wrap: wrap;
   gap: 8px;
+}
+
+.dashboard-home__actions button:first-child {
+  background: color-mix(in srgb, var(--dashboard-accent) 10%, var(--background-primary));
+  border-color: color-mix(in srgb, var(--dashboard-accent) 38%, var(--dashboard-border));
+  color: var(--text-accent);
 }
 
 .dashboard-home__quick-row {
@@ -68,7 +79,7 @@
   align-items: center;
   background: var(--dashboard-surface);
   border: 1px solid var(--dashboard-border);
-  border-radius: 8px;
+  border-radius: var(--dashboard-radius);
   display: flex;
   gap: 8px;
   min-height: 48px;
@@ -111,7 +122,7 @@
 .dashboard-home__card {
   background: var(--dashboard-surface);
   border: 1px solid var(--dashboard-border);
-  border-radius: 8px;
+  border-radius: var(--dashboard-radius);
   min-height: 160px;
   padding: 14px 14px 18px;
   position: relative;
@@ -158,11 +169,13 @@
 
 .dashboard-home__card-header {
   align-items: center;
+  border-bottom: 1px solid color-mix(in srgb, var(--dashboard-border) 72%, transparent);
   cursor: grab;
   display: flex;
   gap: 10px;
   justify-content: space-between;
-  margin-bottom: 8px;
+  margin-bottom: 12px;
+  padding-bottom: 9px;
 }
 
 .dashboard-home__card-header:active {
@@ -177,7 +190,8 @@
 }
 
 .dashboard-home__card-header h2 {
-  font-size: 16px;
+  font-size: 15px;
+  font-weight: 650;
   margin: 0;
 }
 
@@ -502,7 +516,7 @@
 .dashboard-home__daily-status-item {
   align-items: center;
   background: color-mix(in srgb, var(--dashboard-surface-alt), var(--dashboard-accent) 4%);
-  border-radius: 999px;
+  border-radius: 6px;
   display: inline-flex;
   gap: 6px;
   min-height: 30px;
@@ -590,6 +604,11 @@
   background: color-mix(in srgb, var(--dashboard-surface-alt), transparent 35%);
 }
 
+.dashboard-home__thought-item:focus-visible {
+  outline: 2px solid var(--dashboard-accent);
+  outline-offset: -2px;
+}
+
 .dashboard-home__thought-item:first-of-type {
   border-top: 0;
   padding-top: 0;
@@ -632,6 +651,11 @@
   display: flex;
   gap: 8px;
   padding: 7px 0;
+  transition: background 120ms ease;
+}
+
+.dashboard-home__task:hover {
+  background: color-mix(in srgb, var(--dashboard-surface-alt), transparent 35%);
 }
 
 .dashboard-home__task input {
@@ -672,7 +696,7 @@
   aspect-ratio: 1;
   background: var(--dashboard-surface-alt);
   border: 1px solid var(--dashboard-border);
-  border-radius: 6px;
+  border-radius: 5px;
   cursor: pointer;
   display: flex;
   flex-direction: column;
@@ -680,6 +704,11 @@
   justify-content: center;
   min-width: 0;
   position: relative;
+  transition: background 120ms ease, border-color 120ms ease, color 120ms ease;
+}
+
+.dashboard-home__calendar-day:hover {
+  border-color: color-mix(in srgb, var(--dashboard-accent) 45%, var(--dashboard-border));
 }
 
 .dashboard-home__calendar-day span {
@@ -692,6 +721,7 @@
 
 .dashboard-home__calendar-day.is-today {
   border-color: var(--dashboard-accent);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--dashboard-accent) 45%, transparent);
   color: var(--text-accent);
 }
 
