@@ -877,7 +877,8 @@ class DashboardView extends ItemView {
       });
     });
     const month = moment();
-    const start = month.clone().startOf("month").startOf("week");
+    const firstDay = month.clone().startOf("month");
+    const start = firstDay.clone().subtract(firstDay.day(), "days");
     const today = moment().format("YYYY-MM-DD");
 
     const calendar = card.createDiv({ cls: "dashboard-home__calendar" });
