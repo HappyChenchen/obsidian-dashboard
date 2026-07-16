@@ -582,6 +582,7 @@ class DashboardView extends ItemView {
   private pomodoroRemaining = 0;
   private pomodoroRunning = false;
   private pomodoroTimer?: number;
+  private calendarClickTimer?: number;
 
   constructor(leaf: WorkspaceLeaf, plugin: DashboardPlugin) {
     super(leaf);
@@ -607,6 +608,7 @@ class DashboardView extends ItemView {
 
   async onClose() {
     window.clearInterval(this.pomodoroTimer);
+    window.clearTimeout(this.calendarClickTimer);
   }
 
   getPanelSize(panelId: DashboardPanelId): DashboardPanelSize {
@@ -934,24 +936,26 @@ class DashboardView extends ItemView {
           data.dailyDates.has(iso) ? "has-daily" : "",
         ].join(" "),
       });
-      const dayLabel = data.dailyDates.has(iso)
-        ? cell.createEl("button", {
-            cls: "dashboard-home__calendar-day-link",
-            text: day.format("D"),
-            attr: { "aria-label": `打开 ${iso} Daily` },
-          })
-        : cell.createEl("span", { text: day.format("D") });
-      if (data.dailyDates.has(iso)) {
-        dayLabel.addEventListener("click", async (event) => {
-          event.preventDefault();
-          event.stopPropagation();
-          const file = await this.plugin.ensureDailyNote(iso);
-          await this.plugin.openFile(file);
-        });
-      }
-      cell.addEventListener("click", async () => {
-        this.selectedCalendarDate = iso;
-        await this.render();
+      cell.createEl("span", { text: day.format("D") });
+      cell.setAttr(
+        "title",
+        data.dailyDates.has(iso)
+          ? `单击查看 Todo，双击打开 ${iso} Daily`
+          : `单击查看 Todo，双击创建 ${iso} Daily`,
+      );
+      cell.addEventListener("click", () => {
+        window.clearTimeout(this.calendarClickTimer);
+        this.calendarClickTimer = window.setTimeout(async () => {
+          this.selectedCalendarDate = iso;
+          await this.render();
+        }, 220);
+      });
+      cell.addEventListener("dblclick", async (event) => {
+        event.preventDefault();
+        event.stopPropagation();
+        window.clearTimeout(this.calendarClickTimer);
+        const file = await this.plugin.ensureDailyNote(iso);
+        await this.plugin.openFile(file);
       });
     }
 

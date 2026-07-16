@@ -723,27 +723,6 @@
   line-height: 1;
 }
 
-.dashboard-home__calendar-day-link {
-  background: transparent;
-  border: 0;
-  color: inherit;
-  font-size: inherit;
-  line-height: 1;
-  min-height: 0;
-  padding: 0;
-}
-
-.dashboard-home__calendar-day-link:hover {
-  background: transparent;
-  color: var(--text-accent);
-  text-decoration: underline;
-}
-
-.dashboard-home__calendar-day.has-daily .dashboard-home__calendar-day-link {
-  color: var(--text-accent);
-  font-weight: 650;
-}
-
 .dashboard-home__calendar-day.is-muted {
   opacity: 0.45;
 }
@@ -757,11 +736,6 @@
 .dashboard-home__calendar-day.is-selected {
   background: var(--interactive-accent);
   border-color: var(--interactive-accent);
-  color: var(--text-on-accent);
-}
-
-.dashboard-home__calendar-day.is-selected .dashboard-home__calendar-day-link,
-.dashboard-home__calendar-day.is-selected .dashboard-home__calendar-day-link:hover {
   color: var(--text-on-accent);
 }
 
