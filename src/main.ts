@@ -931,9 +931,24 @@ class DashboardView extends ItemView {
           day.month() === month.month() ? "" : "is-muted",
           iso === today ? "is-today" : "",
           iso === this.selectedCalendarDate ? "is-selected" : "",
+          data.dailyDates.has(iso) ? "has-daily" : "",
         ].join(" "),
       });
-      cell.createEl("span", { text: day.format("D") });
+      const dayLabel = data.dailyDates.has(iso)
+        ? cell.createEl("button", {
+            cls: "dashboard-home__calendar-day-link",
+            text: day.format("D"),
+            attr: { "aria-label": `打开 ${iso} Daily` },
+          })
+        : cell.createEl("span", { text: day.format("D") });
+      if (data.dailyDates.has(iso)) {
+        dayLabel.addEventListener("click", async (event) => {
+          event.preventDefault();
+          event.stopPropagation();
+          const file = await this.plugin.ensureDailyNote(iso);
+          await this.plugin.openFile(file);
+        });
+      }
       cell.addEventListener("click", async () => {
         this.selectedCalendarDate = iso;
         await this.render();
