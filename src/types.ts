@@ -4,10 +4,12 @@ export type DashboardPanelId =
   | "calendar"
   | "daily"
   | "todo"
+  | "study"
   | "reading"
   | "database"
   | "projects";
 export type DashboardPanelSize = "compact" | "normal" | "wide" | "tall" | "large";
+export type StudyTrackerMode = "month" | "year";
 
 export interface DashboardSettings {
   dailyFolder: string;
@@ -21,6 +23,20 @@ export interface DashboardSettings {
   panelOrder: DashboardPanelId[];
   panelSizes: Record<DashboardPanelId, DashboardPanelSize>;
   visiblePanels: Record<DashboardPanelId, boolean>;
+  studyCheckins: StudyCheckin[];
+}
+
+export interface StudyCourse {
+  id: string;
+  module: string;
+  label: string;
+  index: number;
+}
+
+export interface StudyCheckin {
+  courseId: string;
+  date: string;
+  checkedAt: number;
 }
 
 export interface DashboardTask {
@@ -89,4 +105,5 @@ export interface DashboardData {
   articles: LibraryItem[];
   books: LibraryItem[];
   recentThoughts: RecentThought[];
+  studyCheckins: StudyCheckin[];
 }

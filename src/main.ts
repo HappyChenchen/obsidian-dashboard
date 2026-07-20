@@ -17,6 +17,7 @@ import {
   DEFAULT_SETTINGS,
   VIEW_TYPE_DASHBOARD,
   VIEW_TYPE_MONTHLY_DIARY,
+  VIEW_TYPE_STUDY_TRACKER,
 } from "./constants";
 import {
   appendLineUnderHeading,
@@ -38,6 +39,14 @@ import {
   getTasksForDate,
   stripTaskMetadata,
 } from "./tasks";
+import {
+  getStudyCheckinCountByDate,
+  getStudyCheckinsForDate,
+  getStudyCourse,
+  normalizeStudyCheckins,
+  STUDY_COURSES,
+  STUDY_MODULES,
+} from "./study";
 import type {
   DashboardData,
   DailySection,
@@ -50,6 +59,9 @@ import type {
   MonthlyDiaryFilter,
   ProjectSummary,
   RecentThought,
+  StudyCheckin,
+  StudyCourse,
+  StudyTrackerMode,
 } from "./types";
 
 const MONTHLY_DIARY_FILTERS: Array<{ id: MonthlyDiaryFilter; label: string }> = [
@@ -73,6 +85,10 @@ export default class DashboardPlugin extends Plugin {
     this.registerView(
       VIEW_TYPE_MONTHLY_DIARY,
       (leaf) => new MonthlyDiaryView(leaf, this),
+    );
+    this.registerView(
+      VIEW_TYPE_STUDY_TRACKER,
+      (leaf) => new StudyTrackerView(leaf, this),
     );
 
     this.addRibbonIcon("layout-dashboard", "Open dashboard", () => {
@@ -101,6 +117,12 @@ export default class DashboardPlugin extends Plugin {
     });
 
     this.addCommand({
+      id: "open-study-tracker",
+      name: "Open study tracker",
+      callback: () => this.activateStudyTrackerView(),
+    });
+
+    this.addCommand({
       id: "refresh-dashboard-home",
       name: "Refresh dashboard home",
       callback: () => this.refreshDashboardViews(),
@@ -125,6 +147,7 @@ export default class DashboardPlugin extends Plugin {
   onunload() {
     this.app.workspace.detachLeavesOfType(VIEW_TYPE_DASHBOARD);
     this.app.workspace.detachLeavesOfType(VIEW_TYPE_MONTHLY_DIARY);
+    this.app.workspace.detachLeavesOfType(VIEW_TYPE_STUDY_TRACKER);
   }
 
   async loadSettings() {
@@ -132,6 +155,7 @@ export default class DashboardPlugin extends Plugin {
     this.settings.panelOrder = normalizePanelOrder(this.settings.panelOrder);
     this.settings.panelSizes = normalizePanelSizes(this.settings.panelSizes);
     this.settings.visiblePanels = normalizePanelVisibility(this.settings.visiblePanels);
+    this.settings.studyCheckins = normalizeStudyCheckins(this.settings.studyCheckins);
   }
 
   async saveSettings() {
@@ -219,12 +243,41 @@ export default class DashboardPlugin extends Plugin {
     }
   }
 
+  refreshStudyTrackerViews() {
+    for (const leaf of this.app.workspace.getLeavesOfType(VIEW_TYPE_STUDY_TRACKER)) {
+      const view = leaf.view;
+      if (view instanceof StudyTrackerView) {
+        view.render();
+      }
+    }
+  }
+
   queueRefresh() {
     window.clearTimeout(this.refreshTimer);
     this.refreshTimer = window.setTimeout(() => {
       this.refreshDashboardViews();
       this.refreshMonthlyDiaryViews();
+      this.refreshStudyTrackerViews();
     }, 400);
+  }
+
+  async activateStudyTrackerView(
+    date = moment().format("YYYY-MM-DD"),
+    mode: StudyTrackerMode = "month",
+  ) {
+    const existingLeaves = this.app.workspace.getLeavesOfType(VIEW_TYPE_STUDY_TRACKER);
+    const leaf = existingLeaves[0] ?? this.app.workspace.getLeaf(false);
+
+    await leaf.setViewState({
+      type: VIEW_TYPE_STUDY_TRACKER,
+      active: true,
+    });
+
+    if (leaf.view instanceof StudyTrackerView) {
+      await leaf.view.setDate(date, mode);
+    }
+
+    this.app.workspace.revealLeaf(leaf);
   }
 
   async collectData(): Promise<DashboardData> {
@@ -327,7 +380,46 @@ export default class DashboardPlugin extends Plugin {
       books: books.sort((a, b) => b.updated - a.updated).slice(0, 8),
       recentThoughts: recentThoughts
         .sort((a, b) => b.date.localeCompare(a.date) || b.updated - a.updated),
+      studyCheckins: this.settings.studyCheckins,
     };
+  }
+
+  getStudyCourses(): StudyCourse[] {
+    return STUDY_COURSES;
+  }
+
+  getStudyCheckinsForDate(date: string): StudyCheckin[] {
+    return getStudyCheckinsForDate(this.settings.studyCheckins, date);
+  }
+
+  isStudyCourseCheckedIn(courseId: string, date: string): boolean {
+    return this.settings.studyCheckins.some(
+      (checkin) => checkin.courseId === courseId && checkin.date === date,
+    );
+  }
+
+  async toggleStudyCheckin(courseId: string, date: string) {
+    if (!getStudyCourse(courseId) || !moment(date, "YYYY-MM-DD", true).isValid()) {
+      return;
+    }
+
+    const existingIndex = this.settings.studyCheckins.findIndex(
+      (checkin) => checkin.courseId === courseId && checkin.date === date,
+    );
+    if (existingIndex >= 0) {
+      this.settings.studyCheckins.splice(existingIndex, 1);
+    } else {
+      this.settings.studyCheckins.push({
+        courseId,
+        date,
+        checkedAt: Date.now(),
+      });
+    }
+
+    this.settings.studyCheckins = normalizeStudyCheckins(this.settings.studyCheckins);
+    await this.saveData(this.settings);
+    this.refreshDashboardViews();
+    this.refreshStudyTrackerViews();
   }
 
   getDailyFile(date: string): TFile | undefined {
@@ -659,6 +751,11 @@ class DashboardView extends ItemView {
       return;
     }
 
+    if (panelId === "study") {
+      this.renderStudy(root, data);
+      return;
+    }
+
     if (panelId === "reading") {
       this.renderReading(root, data);
       return;
@@ -899,6 +996,48 @@ class DashboardView extends ItemView {
         text: task.due ? `${task.due} · ${task.file.basename}` : task.file.basename,
       });
       meta.addEventListener("click", () => this.plugin.openFile(task.file));
+    }
+  }
+
+  private renderStudy(root: HTMLElement, data: DashboardData) {
+    const card = createCard(root, "公考打卡", "is-study", "study", this, (actions) => {
+      const open = actions.createEl("button", { text: "打开" });
+      open.addEventListener("click", async () => {
+        await this.plugin.activateStudyTrackerView(data.today);
+      });
+    });
+
+    const countByDate = getStudyCheckinCountByDate(data.studyCheckins);
+    const totalCompleted = data.studyCheckins.length;
+    const todayCheckins = getStudyCheckinsForDate(data.studyCheckins, data.today);
+    const summary = card.createDiv({ cls: "dashboard-home__study-summary" });
+    summary.createDiv({
+      cls: "dashboard-home__study-total",
+      text: `${totalCompleted}/${STUDY_COURSES.length} 节`,
+    });
+    summary.createDiv({
+      cls: "dashboard-home__study-days",
+      text: `${countByDate.size} 天有记录`,
+    });
+
+    const bar = card.createDiv({ cls: "dashboard-home__progress" });
+    bar.createDiv({
+      cls: "dashboard-home__progress-fill",
+      attr: { style: `width: ${Math.round((totalCompleted / STUDY_COURSES.length) * 100)}%` },
+    });
+
+    const today = card.createDiv({ cls: "dashboard-home__study-today" });
+    today.createEl("strong", { text: `${data.today} · 今日课程` });
+    const todayLabels = new Set(todayCheckins.map((checkin) => checkin.courseId));
+    for (const course of STUDY_COURSES) {
+      const row = today.createDiv({ cls: "dashboard-home__study-row" });
+      const checkbox = row.createEl("input", { attr: { type: "checkbox" } });
+      checkbox.checked = todayLabels.has(course.id);
+      checkbox.addEventListener("change", async () => {
+        await this.plugin.toggleStudyCheckin(course.id, data.today);
+        await this.render();
+      });
+      row.createEl("span", { text: course.label });
     }
   }
 
@@ -1393,6 +1532,245 @@ class MonthlyDiaryView extends ItemView {
   }
 }
 
+class StudyTrackerView extends ItemView {
+  private plugin: DashboardPlugin;
+  private mode: StudyTrackerMode = "month";
+  private cursor = moment().startOf("month");
+  private selectedDate = moment().format("YYYY-MM-DD");
+
+  constructor(leaf: WorkspaceLeaf, plugin: DashboardPlugin) {
+    super(leaf);
+    this.plugin = plugin;
+  }
+
+  getViewType() {
+    return VIEW_TYPE_STUDY_TRACKER;
+  }
+
+  getDisplayText() {
+    return "公考学习打卡";
+  }
+
+  getIcon() {
+    return "calendar-check-2";
+  }
+
+  async onOpen() {
+    await this.render();
+  }
+
+  async setDate(date: string, mode: StudyTrackerMode = this.mode) {
+    const parsed = moment(date, "YYYY-MM-DD", true);
+    if (!parsed.isValid()) {
+      return;
+    }
+
+    this.mode = mode;
+    this.selectedDate = parsed.format("YYYY-MM-DD");
+    this.cursor = mode === "year"
+      ? parsed.clone().startOf("year")
+      : parsed.clone().startOf("month");
+    await this.render();
+  }
+
+  async render() {
+    const root = this.containerEl.children[1] as HTMLElement;
+    root.empty();
+    root.addClass("dashboard-study-view");
+    const panel = root.createDiv({ cls: "dashboard-study-panel" });
+    const checkins = normalizeStudyCheckins(this.plugin.settings.studyCheckins);
+    const checkinCountByDate = getStudyCheckinCountByDate(checkins);
+
+    this.renderHeader(panel, checkins, checkinCountByDate);
+    if (this.mode === "year") {
+      this.renderYear(panel, checkinCountByDate);
+    } else {
+      this.renderMonth(panel, checkinCountByDate);
+    }
+    this.renderSelectedDay(panel, checkins);
+  }
+
+  private renderHeader(
+    root: HTMLElement,
+    checkins: StudyCheckin[],
+    checkinCountByDate: Map<string, number>,
+  ) {
+    const header = root.createDiv({ cls: "dashboard-study-panel__header" });
+    const titleGroup = header.createDiv();
+    titleGroup.createEl("p", {
+      cls: "dashboard-study-panel__eyebrow",
+      text: "STUDY TRACKER",
+    });
+    titleGroup.createEl("h1", {
+      text: this.mode === "year"
+        ? this.cursor.format("YYYY 年")
+        : this.cursor.format("YYYY 年 M 月"),
+    });
+    titleGroup.createEl("p", {
+      cls: "dashboard-study-panel__summary",
+      text: `${checkins.length}/${STUDY_COURSES.length} 节 · ${checkinCountByDate.size} 天有记录`,
+    });
+
+    const actions = header.createDiv({ cls: "dashboard-study-panel__actions" });
+    const modes = actions.createDiv({ cls: "dashboard-study-panel__modes" });
+    for (const mode of ["month", "year"] as StudyTrackerMode[]) {
+      const button = modes.createEl("button", {
+        cls: mode === this.mode ? "is-active" : "",
+        text: mode === "month" ? "月" : "年",
+      });
+      button.addEventListener("click", () => {
+        this.mode = mode;
+        this.cursor = mode === "year"
+          ? moment(this.selectedDate).startOf("year")
+          : moment(this.selectedDate).startOf("month");
+        void this.render();
+      });
+    }
+
+    const navigation = actions.createDiv({ cls: "dashboard-study-panel__nav" });
+    const previous = navigation.createEl("button", {
+      text: this.mode === "year" ? "上年" : "上月",
+    });
+    previous.addEventListener("click", () => {
+      this.cursor = this.cursor.clone().subtract(1, this.mode);
+      void this.render();
+    });
+
+    const current = navigation.createEl("button", { text: "今天" });
+    current.addEventListener("click", () => {
+      const today = moment();
+      this.selectedDate = today.format("YYYY-MM-DD");
+      this.cursor = this.mode === "year" ? today.clone().startOf("year") : today.clone().startOf("month");
+      void this.render();
+    });
+
+    const next = navigation.createEl("button", {
+      text: this.mode === "year" ? "下年" : "下月",
+    });
+    next.addEventListener("click", () => {
+      this.cursor = this.cursor.clone().add(1, this.mode);
+      void this.render();
+    });
+  }
+
+  private renderMonth(root: HTMLElement, checkinCountByDate: Map<string, number>) {
+    const calendar = root.createDiv({ cls: "dashboard-study-calendar" });
+    this.renderWeekdays(calendar);
+
+    const firstDay = this.cursor.clone().startOf("month");
+    for (let index = 0; index < firstDay.day(); index += 1) {
+      calendar.createDiv({ cls: "dashboard-study-calendar__empty" });
+    }
+
+    for (let day = 1; day <= this.cursor.daysInMonth(); day += 1) {
+      const date = this.cursor.clone().date(day).format("YYYY-MM-DD");
+      this.renderDayCell(calendar, date, String(day), checkinCountByDate.get(date) ?? 0);
+    }
+  }
+
+  private renderYear(root: HTMLElement, checkinCountByDate: Map<string, number>) {
+    const yearGrid = root.createDiv({ cls: "dashboard-study-year" });
+    for (let month = 0; month < 12; month += 1) {
+      const monthMoment = this.cursor.clone().month(month).startOf("month");
+      const monthPanel = yearGrid.createDiv({ cls: "dashboard-study-year__month" });
+      const monthHeader = monthPanel.createDiv({ cls: "dashboard-study-year__month-header" });
+      monthHeader.createEl("strong", { text: monthMoment.format("M 月") });
+      const monthCount = Array.from(checkinCountByDate.entries())
+        .filter(([date]) => date.startsWith(monthMoment.format("YYYY-MM")))
+        .reduce((total, [, count]) => total + count, 0);
+      monthHeader.createEl("span", { text: `${monthCount} 节` });
+
+      const calendar = monthPanel.createDiv({ cls: "dashboard-study-calendar is-mini" });
+      this.renderWeekdays(calendar, true);
+      for (let index = 0; index < monthMoment.day(); index += 1) {
+        calendar.createDiv({ cls: "dashboard-study-calendar__empty" });
+      }
+      for (let day = 1; day <= monthMoment.daysInMonth(); day += 1) {
+        const date = monthMoment.clone().date(day).format("YYYY-MM-DD");
+        this.renderDayCell(calendar, date, String(day), checkinCountByDate.get(date) ?? 0, true);
+      }
+    }
+  }
+
+  private renderWeekdays(root: HTMLElement, compact = false) {
+    for (const dayName of ["日", "一", "二", "三", "四", "五", "六"]) {
+      root.createDiv({
+        cls: "dashboard-study-calendar__weekday",
+        text: compact ? dayName.slice(0, 1) : dayName,
+      });
+    }
+  }
+
+  private renderDayCell(
+    root: HTMLElement,
+    date: string,
+    label: string,
+    count: number,
+    compact = false,
+  ) {
+    const cell = root.createDiv({
+      cls: [
+        "dashboard-study-calendar__day",
+        compact ? "is-mini" : "",
+        count > 0 ? "has-checkins" : "",
+        count > 2 ? "is-full" : "",
+        date === this.selectedDate ? "is-selected" : "",
+        date === moment().format("YYYY-MM-DD") ? "is-today" : "",
+      ].filter(Boolean).join(" "),
+    });
+    cell.createEl("strong", { text: label });
+    if (count > 0) {
+      cell.createEl("span", { text: compact ? String(count) : `${count} 节` });
+      if (!compact) {
+        const labels = getStudyCheckinsForDate(this.plugin.settings.studyCheckins, date)
+          .map((checkin) => getStudyCourse(checkin.courseId)?.label)
+          .filter((label): label is string => Boolean(label));
+        cell.createDiv({
+          cls: "dashboard-study-calendar__labels",
+          text: labels.slice(0, 3).join(" · ") + (labels.length > 3 ? " …" : ""),
+        });
+      }
+      cell.setAttr("title", `${date} · ${count} 节：${getStudyCheckinsForDate(this.plugin.settings.studyCheckins, date).map((checkin) => getStudyCourse(checkin.courseId)?.label).filter(Boolean).join("、")}`);
+    } else {
+      cell.setAttr("title", `${date} · 未打卡`);
+    }
+    cell.addEventListener("click", () => {
+      this.selectedDate = date;
+      if (compact) {
+        this.mode = "month";
+        this.cursor = moment(date, "YYYY-MM-DD", true).startOf("month");
+      }
+      void this.render();
+    });
+  }
+
+  private renderSelectedDay(root: HTMLElement, checkins: StudyCheckin[]) {
+    const selected = root.createDiv({ cls: "dashboard-study-selected" });
+    const selectedHeader = selected.createDiv({ cls: "dashboard-study-selected__header" });
+    const selectedCheckins = getStudyCheckinsForDate(checkins, this.selectedDate);
+    selectedHeader.createEl("h2", { text: `${this.selectedDate} · 课程打卡` });
+    selectedHeader.createEl("span", {
+      text: `${selectedCheckins.length}/${STUDY_COURSES.length}`,
+    });
+
+    const courseGrid = selected.createDiv({ cls: "dashboard-study-courses" });
+    for (const module of STUDY_MODULES) {
+      const moduleCourses = STUDY_COURSES.filter((course) => course.module === module);
+      const group = courseGrid.createDiv({ cls: "dashboard-study-courses__group" });
+      group.createEl("h3", { text: module });
+      for (const course of moduleCourses) {
+        const row = group.createDiv({ cls: "dashboard-study-course" });
+        const checkbox = row.createEl("input", { attr: { type: "checkbox" } });
+        checkbox.checked = this.plugin.isStudyCourseCheckedIn(course.id, this.selectedDate);
+        checkbox.addEventListener("change", async () => {
+          await this.plugin.toggleStudyCheckin(course.id, this.selectedDate);
+        });
+        row.createEl("span", { text: course.label });
+      }
+    }
+  }
+}
+
 class DashboardSettingTab extends PluginSettingTab {
   plugin: DashboardPlugin;
 
@@ -1491,6 +1869,17 @@ class DashboardSettingTab extends PluginSettingTab {
           .setValue(this.plugin.isPanelVisible("projects"))
           .onChange(async (value) => {
             await this.plugin.setPanelVisibility("projects", value);
+          }),
+      );
+
+    new Setting(containerEl)
+      .setName("显示公考打卡面板")
+      .setDesc("在首页显示公考课程的今日打卡和学习进度。")
+      .addToggle((toggle) =>
+        toggle
+          .setValue(this.plugin.isPanelVisible("study"))
+          .onChange(async (value) => {
+            await this.plugin.setPanelVisibility("study", value);
           }),
       );
 
