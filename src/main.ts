@@ -1135,6 +1135,11 @@ class DashboardView extends ItemView {
     }
 
     const firstDay = month.clone().startOf("month");
+    const weekCount = Math.ceil((firstDay.day() + month.daysInMonth()) / 7);
+    grid.setAttr(
+      "style",
+      `grid-template-rows: 24px repeat(${weekCount}, minmax(0, 1fr));`,
+    );
     for (let index = 0; index < firstDay.day(); index += 1) {
       grid.createDiv({ cls: "dashboard-monthly-plan__empty" });
     }
@@ -1791,6 +1796,11 @@ class StudyTrackerView extends ItemView {
     this.renderWeekdays(calendar);
 
     const firstDay = this.cursor.clone().startOf("month");
+    const weekCount = Math.ceil((firstDay.day() + this.cursor.daysInMonth()) / 7);
+    calendar.setAttr(
+      "style",
+      `grid-template-rows: 22px repeat(${weekCount}, minmax(0, 1fr));`,
+    );
     for (let index = 0; index < firstDay.day(); index += 1) {
       calendar.createDiv({ cls: "dashboard-study-calendar__empty" });
     }
