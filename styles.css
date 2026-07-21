@@ -97,6 +97,7 @@
 }
 
 .dashboard-home__tab-content > .dashboard-monthly-plan {
+  height: auto;
   min-height: 100%;
 }
 
@@ -936,7 +937,8 @@
   box-sizing: border-box;
   display: flex;
   flex-direction: column;
-  height: 100%;
+  height: auto;
+  min-height: 100%;
   margin: 0 auto 28px;
   max-width: none;
   width: 100%;
@@ -994,7 +996,7 @@
 
 .dashboard-monthly-plan__grid {
   display: grid;
-  flex: 1 1 auto;
+  flex: 0 0 auto;
   gap: 8px;
   grid-template-columns: repeat(7, minmax(0, 1fr));
   min-height: 0;
@@ -1009,7 +1011,7 @@
 
 .dashboard-monthly-plan__empty,
 .dashboard-monthly-plan__day {
-  min-height: 0;
+  min-height: 96px;
   min-width: 0;
 }
 
@@ -1068,9 +1070,10 @@
   box-sizing: border-box;
   display: flex;
   flex-direction: column;
-  height: 100%;
+  height: auto;
   margin: 0 auto 32px;
   max-width: none;
+  min-height: 100%;
   padding: 36px max(32px, 4vw) 44px;
   width: 100%;
 }
@@ -1149,14 +1152,14 @@
 
 .dashboard-study-calendar {
   display: grid;
-  flex: 0 1 auto;
+  flex: 0 0 auto;
   gap: 8px;
   grid-template-columns: repeat(7, minmax(0, 1fr));
   min-height: 0;
 }
 
 .dashboard-study-panel > .dashboard-study-calendar {
-  flex: 1 1 auto;
+  flex: 0 0 auto;
 }
 
 .dashboard-study-calendar__weekday {
@@ -1168,7 +1171,7 @@
 
 .dashboard-study-calendar__empty,
 .dashboard-study-calendar__day {
-  min-height: 0;
+  min-height: 88px;
   min-width: 0;
 }
 
@@ -1447,7 +1450,7 @@
 
   .dashboard-monthly-plan__day,
   .dashboard-monthly-plan__empty {
-    min-height: 0;
+    min-height: 80px;
   }
 
   .dashboard-monthly-plan__day {
@@ -1496,7 +1499,7 @@
 
   .dashboard-study-calendar__empty,
   .dashboard-study-calendar__day {
-    min-height: 0;
+    min-height: 72px;
   }
 
   .dashboard-study-calendar__day {
@@ -1534,6 +1537,6 @@
 
   .dashboard-monthly-plan__day,
   .dashboard-monthly-plan__empty {
-    min-height: 0;
+    min-height: 68px;
   }
 }
