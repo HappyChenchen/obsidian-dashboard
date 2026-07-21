@@ -55,6 +55,7 @@ import type {
   DashboardPanelSize,
   DashboardSettings,
   DashboardTask,
+  DashboardTabId,
   LibraryItem,
   MonthlyDiaryFilter,
   ProjectSummary,
@@ -156,6 +157,7 @@ export default class DashboardPlugin extends Plugin {
     this.settings.panelSizes = normalizePanelSizes(this.settings.panelSizes);
     this.settings.visiblePanels = normalizePanelVisibility(this.settings.visiblePanels);
     this.settings.studyCheckins = normalizeStudyCheckins(this.settings.studyCheckins);
+    this.settings.monthlyPlan = normalizeMonthlyPlan(this.settings.monthlyPlan);
   }
 
   async saveSettings() {
@@ -422,6 +424,20 @@ export default class DashboardPlugin extends Plugin {
     this.refreshStudyTrackerViews();
   }
 
+  async saveMonthlyPlanText(date: string, text: string) {
+    if (!moment(date, "YYYY-MM-DD", true).isValid()) {
+      return;
+    }
+
+    const value = text.trim();
+    if (value) {
+      this.settings.monthlyPlan[date] = value;
+    } else {
+      delete this.settings.monthlyPlan[date];
+    }
+    await this.saveData(this.settings);
+  }
+
   getDailyFile(date: string): TFile | undefined {
     const parsedDate = parseDashboardDate(date, this.settings.dailyDateFormat);
     if (!parsedDate) {
@@ -662,6 +678,10 @@ export default class DashboardPlugin extends Plugin {
 
 class DashboardView extends ItemView {
   private plugin: DashboardPlugin;
+  private dashboardLeaf: WorkspaceLeaf;
+  private activeTab: DashboardTabId = "home";
+  private monthlyPlanMonth = moment().format("YYYY-MM");
+  private studyTrackerRenderer?: StudyTrackerView;
   private selectedCalendarDate = moment().format("YYYY-MM-DD");
   private draggedPanelId?: DashboardPanelId;
   private resizingPanel?: {
@@ -678,6 +698,7 @@ class DashboardView extends ItemView {
 
   constructor(leaf: WorkspaceLeaf, plugin: DashboardPlugin) {
     super(leaf);
+    this.dashboardLeaf = leaf;
     this.plugin = plugin;
     this.pomodoroRemaining = plugin.settings.pomodoroMinutes * 60;
   }
@@ -717,15 +738,30 @@ class DashboardView extends ItemView {
     root.empty();
 
     this.renderHeader(root, data);
+    this.renderTabs(root);
 
-    const quickRow = root.createDiv({ cls: "dashboard-home__quick-row" });
+    const content = root.createDiv({ cls: "dashboard-home__tab-content" });
+    if (this.activeTab === "study") {
+      if (!this.studyTrackerRenderer) {
+        this.studyTrackerRenderer = new StudyTrackerView(this.dashboardLeaf, this.plugin);
+      }
+      await this.studyTrackerRenderer.renderTo(content);
+      return;
+    }
+
+    if (this.activeTab === "monthly") {
+      this.renderMonthlyPlan(content);
+      return;
+    }
+
+    const quickRow = content.createDiv({ cls: "dashboard-home__quick-row" });
     this.renderQuickTask(quickRow);
     this.renderPomodoro(quickRow);
 
-    const grid = root.createDiv({ cls: "dashboard-home__grid" });
+    const grid = content.createDiv({ cls: "dashboard-home__grid" });
 
     for (const panelId of normalizePanelOrder(this.plugin.settings.panelOrder).filter(
-      (panelId) => this.plugin.isPanelVisible(panelId),
+      (panelId) => panelId !== "study" && this.plugin.isPanelVisible(panelId),
     )) {
       await this.renderPanel(grid, data, panelId);
     }
@@ -787,6 +823,26 @@ class DashboardView extends ItemView {
 
     const refresh = actions.createEl("button", { text: "刷新" });
     refresh.addEventListener("click", () => this.render());
+  }
+
+  private renderTabs(root: HTMLElement) {
+    const tabs = root.createDiv({ cls: "dashboard-home__tabs" });
+    const tabItems: Array<{ id: DashboardTabId; label: string }> = [
+      { id: "home", label: "首页" },
+      { id: "study", label: "公考计划" },
+      { id: "monthly", label: "月度计划" },
+    ];
+
+    for (const tab of tabItems) {
+      const button = tabs.createEl("button", {
+        cls: tab.id === this.activeTab ? "is-active" : "",
+        text: tab.label,
+      });
+      button.addEventListener("click", () => {
+        this.activeTab = tab.id;
+        void this.render();
+      });
+    }
   }
 
   private renderQuickTask(root: HTMLElement) {
@@ -1038,6 +1094,78 @@ class DashboardView extends ItemView {
         await this.render();
       });
       row.createEl("span", { text: course.label });
+    }
+  }
+
+  private renderMonthlyPlan(root: HTMLElement) {
+    const panel = root.createDiv({ cls: "dashboard-monthly-plan" });
+    const month = getSafeMonth(this.monthlyPlanMonth);
+    const header = panel.createDiv({ cls: "dashboard-monthly-plan__header" });
+    const title = header.createDiv();
+    title.createEl("p", {
+      cls: "dashboard-monthly-plan__eyebrow",
+      text: "MONTHLY PLAN",
+    });
+    title.createEl("h2", { text: month.format("YYYY 年 M 月") });
+    title.createEl("p", {
+      cls: "dashboard-monthly-plan__hint",
+      text: "在日期格子里直接写下这个月的计划。内容会自动保存到插件数据。",
+    });
+
+    const navigation = header.createDiv({ cls: "dashboard-monthly-plan__nav" });
+    const previous = navigation.createEl("button", { text: "上月" });
+    previous.addEventListener("click", () => {
+      this.monthlyPlanMonth = month.clone().subtract(1, "month").format("YYYY-MM");
+      void this.render();
+    });
+    const current = navigation.createEl("button", { text: "本月" });
+    current.addEventListener("click", () => {
+      this.monthlyPlanMonth = moment().format("YYYY-MM");
+      void this.render();
+    });
+    const next = navigation.createEl("button", { text: "下月" });
+    next.addEventListener("click", () => {
+      this.monthlyPlanMonth = month.clone().add(1, "month").format("YYYY-MM");
+      void this.render();
+    });
+
+    const grid = panel.createDiv({ cls: "dashboard-monthly-plan__grid" });
+    for (const dayName of ["日", "一", "二", "三", "四", "五", "六"]) {
+      grid.createDiv({ cls: "dashboard-monthly-plan__weekday", text: dayName });
+    }
+
+    const firstDay = month.clone().startOf("month");
+    for (let index = 0; index < firstDay.day(); index += 1) {
+      grid.createDiv({ cls: "dashboard-monthly-plan__empty" });
+    }
+
+    const today = moment().format("YYYY-MM-DD");
+    for (let day = 1; day <= month.daysInMonth(); day += 1) {
+      const date = month.clone().date(day).format("YYYY-MM-DD");
+      const cell = grid.createDiv({
+        cls: [
+          "dashboard-monthly-plan__day",
+          date === today ? "is-today" : "",
+          this.plugin.settings.monthlyPlan[date] ? "has-plan" : "",
+        ].filter(Boolean).join(" "),
+      });
+      cell.createEl("strong", { text: String(day).padStart(2, "0") });
+      const input = cell.createEl("textarea", {
+        cls: "dashboard-monthly-plan__input",
+        attr: { placeholder: "写计划…", rows: "3" },
+      });
+      input.value = this.plugin.settings.monthlyPlan[date] ?? "";
+      let saveTimer: number | undefined;
+      input.addEventListener("input", () => {
+        window.clearTimeout(saveTimer);
+        saveTimer = window.setTimeout(() => {
+          void this.plugin.saveMonthlyPlanText(date, input.value);
+        }, 350);
+      });
+      input.addEventListener("blur", () => {
+        window.clearTimeout(saveTimer);
+        void this.plugin.saveMonthlyPlanText(date, input.value);
+      });
     }
   }
 
@@ -1534,6 +1662,7 @@ class MonthlyDiaryView extends ItemView {
 
 class StudyTrackerView extends ItemView {
   private plugin: DashboardPlugin;
+  private renderTarget?: HTMLElement;
   private mode: StudyTrackerMode = "month";
   private cursor = moment().startOf("month");
   private selectedDate = moment().format("YYYY-MM-DD");
@@ -1574,7 +1703,11 @@ class StudyTrackerView extends ItemView {
   }
 
   async render() {
-    const root = this.containerEl.children[1] as HTMLElement;
+    await this.renderTo(this.renderTarget ?? (this.containerEl.children[1] as HTMLElement));
+  }
+
+  async renderTo(root: HTMLElement) {
+    this.renderTarget = root;
     root.empty();
     root.addClass("dashboard-study-view");
     const panel = root.createDiv({ cls: "dashboard-study-panel" });
@@ -1764,6 +1897,7 @@ class StudyTrackerView extends ItemView {
         checkbox.checked = this.plugin.isStudyCourseCheckedIn(course.id, this.selectedDate);
         checkbox.addEventListener("change", async () => {
           await this.plugin.toggleStudyCheckin(course.id, this.selectedDate);
+          await this.render();
         });
         row.createEl("span", { text: course.label });
       }
@@ -1869,17 +2003,6 @@ class DashboardSettingTab extends PluginSettingTab {
           .setValue(this.plugin.isPanelVisible("projects"))
           .onChange(async (value) => {
             await this.plugin.setPanelVisibility("projects", value);
-          }),
-      );
-
-    new Setting(containerEl)
-      .setName("显示公考打卡面板")
-      .setDesc("在首页显示公考课程的今日打卡和学习进度。")
-      .addToggle((toggle) =>
-        toggle
-          .setValue(this.plugin.isPanelVisible("study"))
-          .onChange(async (value) => {
-            await this.plugin.setPanelVisibility("study", value);
           }),
       );
 
@@ -2026,6 +2149,20 @@ function normalizePanelVisibility(
     }
   }
 
+  return normalized;
+}
+
+function normalizeMonthlyPlan(value: unknown): Record<string, string> {
+  if (!value || typeof value !== "object") {
+    return {};
+  }
+
+  const normalized: Record<string, string> = {};
+  for (const [date, text] of Object.entries(value)) {
+    if (moment(date, "YYYY-MM-DD", true).isValid() && typeof text === "string" && text.trim()) {
+      normalized[date] = text;
+    }
+  }
   return normalized;
 }
 

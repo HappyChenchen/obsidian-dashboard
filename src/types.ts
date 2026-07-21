@@ -10,6 +10,7 @@ export type DashboardPanelId =
   | "projects";
 export type DashboardPanelSize = "compact" | "normal" | "wide" | "tall" | "large";
 export type StudyTrackerMode = "month" | "year";
+export type DashboardTabId = "home" | "study" | "monthly";
 
 export interface DashboardSettings {
   dailyFolder: string;
@@ -24,6 +25,7 @@ export interface DashboardSettings {
   panelSizes: Record<DashboardPanelId, DashboardPanelSize>;
   visiblePanels: Record<DashboardPanelId, boolean>;
   studyCheckins: StudyCheckin[];
+  monthlyPlan: Record<string, string>;
 }
 
 export interface StudyCourse {

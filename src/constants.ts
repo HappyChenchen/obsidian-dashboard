@@ -35,7 +35,7 @@ export const DEFAULT_VISIBLE_PANELS: Record<DashboardPanelId, boolean> = {
   calendar: true,
   daily: true,
   todo: true,
-  study: true,
+  study: false,
   reading: true,
   database: false,
   projects: false,
@@ -54,4 +54,5 @@ export const DEFAULT_SETTINGS: DashboardSettings = {
   panelSizes: DEFAULT_PANEL_SIZES,
   visiblePanels: DEFAULT_VISIBLE_PANELS,
   studyCheckins: [],
+  monthlyPlan: {},
 };

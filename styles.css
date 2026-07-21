@@ -40,6 +40,39 @@
   padding-bottom: 14px;
 }
 
+.dashboard-home__tabs {
+  align-items: center;
+  border-bottom: 1px solid var(--dashboard-border);
+  display: flex;
+  gap: 18px;
+  margin-bottom: 18px;
+}
+
+.dashboard-home__tabs button {
+  background: transparent;
+  border: 0;
+  border-bottom: 2px solid transparent;
+  border-radius: 0;
+  color: var(--dashboard-text-muted);
+  font-size: 13px;
+  min-height: 36px;
+  padding: 0 2px;
+}
+
+.dashboard-home__tabs button:hover,
+.dashboard-home__tabs button.is-active {
+  color: var(--text-accent);
+}
+
+.dashboard-home__tabs button.is-active {
+  border-bottom-color: var(--dashboard-accent);
+  font-weight: 650;
+}
+
+.dashboard-home__tab-content {
+  min-width: 0;
+}
+
 .dashboard-home__header h1 {
   font-size: 32px;
   font-weight: 700;
@@ -870,6 +903,125 @@
   font-size: 13px;
 }
 
+.dashboard-monthly-plan {
+  --dashboard-plan-accent: var(--interactive-accent);
+  --dashboard-plan-border: var(--background-modifier-border);
+  margin: 0 auto 28px;
+  max-width: 1320px;
+}
+
+.dashboard-monthly-plan__header {
+  align-items: flex-end;
+  border-bottom: 1px solid var(--dashboard-plan-border);
+  display: flex;
+  gap: 20px;
+  justify-content: space-between;
+  margin-bottom: 18px;
+  padding-bottom: 14px;
+}
+
+.dashboard-monthly-plan__eyebrow {
+  color: var(--text-muted);
+  font-size: 12px;
+  letter-spacing: 0.06em;
+  margin: 0 0 5px;
+}
+
+.dashboard-monthly-plan__header h2 {
+  font-size: 28px;
+  line-height: 1.15;
+  margin: 0;
+}
+
+.dashboard-monthly-plan__hint {
+  color: var(--text-muted);
+  font-size: 12px;
+  margin: 7px 0 0;
+}
+
+.dashboard-monthly-plan__nav {
+  display: flex;
+  gap: 4px;
+}
+
+.dashboard-monthly-plan__nav button {
+  background: transparent;
+  border: 0;
+  border-radius: 5px;
+  color: var(--text-muted);
+  cursor: pointer;
+  font-size: 12px;
+  min-height: 26px;
+  padding: 0 8px;
+}
+
+.dashboard-monthly-plan__nav button:hover {
+  background: var(--background-modifier-hover);
+  color: var(--text-normal);
+}
+
+.dashboard-monthly-plan__grid {
+  display: grid;
+  gap: 8px;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+}
+
+.dashboard-monthly-plan__weekday {
+  color: var(--text-muted);
+  font-size: 12px;
+  padding: 0 5px 2px;
+  text-align: center;
+}
+
+.dashboard-monthly-plan__empty,
+.dashboard-monthly-plan__day {
+  min-height: 126px;
+  min-width: 0;
+}
+
+.dashboard-monthly-plan__day {
+  background: var(--background-secondary);
+  border: 1px solid var(--dashboard-plan-border);
+  border-radius: 7px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 9px;
+}
+
+.dashboard-monthly-plan__day.is-today {
+  border-color: var(--dashboard-plan-accent);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--dashboard-plan-accent) 42%, transparent);
+}
+
+.dashboard-monthly-plan__day.has-plan {
+  background: color-mix(in srgb, var(--dashboard-plan-accent) 8%, var(--background-secondary));
+}
+
+.dashboard-monthly-plan__day > strong {
+  color: var(--text-normal);
+  font-size: 13px;
+}
+
+.dashboard-monthly-plan__input {
+  background: transparent;
+  border: 0;
+  color: var(--text-normal);
+  flex: 1;
+  font: inherit;
+  font-size: 12px;
+  line-height: 1.45;
+  min-height: 68px;
+  outline: none;
+  padding: 0;
+  resize: none;
+  width: 100%;
+}
+
+.dashboard-monthly-plan__input::placeholder {
+  color: var(--text-faint);
+}
+
 .dashboard-study-view {
   box-sizing: border-box;
   overflow: auto;
@@ -1212,7 +1364,8 @@
   }
 
   .dashboard-home__header,
-  .dashboard-monthly-panel__header {
+  .dashboard-monthly-panel__header,
+  .dashboard-monthly-plan__header {
     align-items: flex-start;
     flex-direction: column;
   }
@@ -1242,6 +1395,19 @@
 
   .dashboard-monthly-panel__snippet {
     -webkit-line-clamp: 2;
+  }
+
+  .dashboard-monthly-plan__day,
+  .dashboard-monthly-plan__empty {
+    min-height: 94px;
+  }
+
+  .dashboard-monthly-plan__day {
+    padding: 7px;
+  }
+
+  .dashboard-monthly-plan__input {
+    min-height: 52px;
   }
 
   .dashboard-home__quick-row,
@@ -1316,5 +1482,10 @@
   .dashboard-study-calendar__day > span,
   .dashboard-study-calendar__labels {
     display: none;
+  }
+
+  .dashboard-monthly-plan__day,
+  .dashboard-monthly-plan__empty {
+    min-height: 72px;
   }
 }
