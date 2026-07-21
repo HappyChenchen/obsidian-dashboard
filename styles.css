@@ -76,17 +76,28 @@
 }
 
 .dashboard-home__tab-content {
-  flex: 1 0 auto;
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  min-height: 0;
   min-width: 0;
 }
 
 .dashboard-home__tab-content > .dashboard-study-view,
 .dashboard-home__tab-content > .dashboard-monthly-plan {
-  min-height: 100%;
+  flex: 1 1 auto;
+  height: 100%;
+  min-height: 0;
+  width: 100%;
 }
 
 .dashboard-home__tab-content > .dashboard-study-view .dashboard-study-panel {
+  min-height: 100%;
   padding: 0 0 44px;
+}
+
+.dashboard-home__tab-content > .dashboard-monthly-plan {
+  min-height: 100%;
 }
 
 .dashboard-home__header h1 {
@@ -924,6 +935,7 @@
   --dashboard-plan-border: var(--background-modifier-border);
   margin: 0 auto 28px;
   max-width: none;
+  width: 100%;
 }
 
 .dashboard-monthly-plan__header {
