@@ -92,7 +92,7 @@ export default class DashboardPlugin extends Plugin {
       (leaf) => new StudyTrackerView(leaf, this),
     );
 
-    this.addRibbonIcon("layout-dashboard", "Open dashboard", () => {
+    this.addRibbonIcon("home", "打开 Dashboard", () => {
       this.activateView();
     });
 
