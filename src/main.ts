@@ -710,7 +710,6 @@ class DashboardView extends ItemView {
   private pomodoroRunning = false;
   private pomodoroTimer?: number;
   private calendarClickTimer?: number;
-  private monthlyPlanResizeObserver?: ResizeObserver;
 
   constructor(leaf: WorkspaceLeaf, plugin: DashboardPlugin) {
     super(leaf);
@@ -738,7 +737,6 @@ class DashboardView extends ItemView {
   async onClose() {
     window.clearInterval(this.pomodoroTimer);
     window.clearTimeout(this.calendarClickTimer);
-    this.monthlyPlanResizeObserver?.disconnect();
   }
 
   getPanelSize(panelId: DashboardPanelId): DashboardPanelSize {
@@ -1155,7 +1153,7 @@ class DashboardView extends ItemView {
     const weekCount = Math.ceil((firstDay.day() + month.daysInMonth()) / 7);
     grid.setAttr(
       "style",
-      `grid-template-rows: 24px repeat(${weekCount}, minmax(44px, auto));`,
+      `grid-template-rows: 24px repeat(${weekCount}, minmax(96px, auto));`,
     );
     for (let index = 0; index < firstDay.day(); index += 1) {
       grid.createDiv({ cls: "dashboard-monthly-plan__empty" });
@@ -1190,39 +1188,6 @@ class DashboardView extends ItemView {
       });
     }
 
-    this.fitMonthlyPlanGrid(panel, grid, weekCount, header);
-  }
-
-  private fitMonthlyPlanGrid(
-    panel: HTMLElement,
-    grid: HTMLElement,
-    weekCount: number,
-    header: HTMLElement,
-  ) {
-    this.monthlyPlanResizeObserver?.disconnect();
-    const update = () => {
-      const availableHeight = panel.parentElement?.clientHeight ?? 0;
-      if (availableHeight <= 0) {
-        return;
-      }
-
-      const gridGaps = 8 * weekCount;
-      const reservedHeight = header.offsetHeight + 24 + gridGaps;
-      const rowHeight = Math.max(
-        44,
-        Math.floor((availableHeight - reservedHeight) / weekCount),
-      );
-      grid.setAttr(
-        "style",
-        `grid-template-rows: 24px repeat(${weekCount}, ${rowHeight}px);`,
-      );
-    };
-
-    this.monthlyPlanResizeObserver = new ResizeObserver(update);
-    if (panel.parentElement) {
-      this.monthlyPlanResizeObserver.observe(panel.parentElement);
-    }
-    window.requestAnimationFrame(update);
   }
 
   private async renderCalendar(root: HTMLElement, data: DashboardData) {
@@ -1722,7 +1687,6 @@ class StudyTrackerView extends ItemView {
   private mode: StudyTrackerMode = "month";
   private cursor = moment().startOf("month");
   private selectedDate = moment().format("YYYY-MM-DD");
-  private calendarResizeObserver?: ResizeObserver;
 
   constructor(leaf: WorkspaceLeaf, plugin: DashboardPlugin) {
     super(leaf);
@@ -1745,10 +1709,6 @@ class StudyTrackerView extends ItemView {
     await this.render();
   }
 
-  async onClose() {
-    this.calendarResizeObserver?.disconnect();
-  }
-
   async setDate(date: string, mode: StudyTrackerMode = this.mode) {
     const parsed = moment(date, "YYYY-MM-DD", true);
     if (!parsed.isValid()) {
@@ -1768,7 +1728,6 @@ class StudyTrackerView extends ItemView {
   }
 
   async renderTo(root: HTMLElement) {
-    this.calendarResizeObserver?.disconnect();
     this.renderTarget = root;
     root.empty();
     root.addClass("dashboard-study-view");
@@ -1777,16 +1736,12 @@ class StudyTrackerView extends ItemView {
     const checkinCountByDate = getStudyCheckinCountByDate(checkins);
 
     this.renderHeader(panel, checkins, checkinCountByDate);
-    let monthCalendar: { element: HTMLElement; weekCount: number } | undefined;
     if (this.mode === "year") {
       this.renderYear(panel, checkinCountByDate);
     } else {
-      monthCalendar = this.renderMonth(panel, checkinCountByDate);
+      this.renderMonth(panel, checkinCountByDate);
     }
     this.renderSelectedDay(panel, checkins);
-    if (monthCalendar) {
-      this.fitStudyCalendar(panel, monthCalendar.element, monthCalendar.weekCount);
-    }
   }
 
   private renderHeader(
@@ -1860,7 +1815,7 @@ class StudyTrackerView extends ItemView {
     const weekCount = Math.ceil((firstDay.day() + this.cursor.daysInMonth()) / 7);
     calendar.setAttr(
       "style",
-      `grid-template-rows: 22px repeat(${weekCount}, minmax(40px, auto));`,
+      `grid-template-rows: 22px repeat(${weekCount}, minmax(88px, auto));`,
     );
     for (let index = 0; index < firstDay.day(); index += 1) {
       calendar.createDiv({ cls: "dashboard-study-calendar__empty" });
@@ -1870,43 +1825,6 @@ class StudyTrackerView extends ItemView {
       const date = this.cursor.clone().date(day).format("YYYY-MM-DD");
       this.renderDayCell(calendar, date, String(day), checkinCountByDate.get(date) ?? 0);
     }
-    return { element: calendar, weekCount };
-  }
-
-  private fitStudyCalendar(
-    panel: HTMLElement,
-    calendar: HTMLElement,
-    weekCount: number,
-  ) {
-    const update = () => {
-      const availableHeight = panel.parentElement?.clientHeight ?? 0;
-      if (availableHeight <= 0) {
-        return;
-      }
-
-      const header = panel.querySelector<HTMLElement>(".dashboard-study-panel__header");
-      const selected = panel.querySelector<HTMLElement>(".dashboard-study-selected");
-      const gridGaps = 8 * weekCount;
-      const reservedHeight =
-        (header?.offsetHeight ?? 0) +
-        (selected?.offsetHeight ?? 0) +
-        34 +
-        gridGaps;
-      const rowHeight = Math.max(
-        40,
-        Math.floor((availableHeight - reservedHeight) / weekCount),
-      );
-      calendar.setAttr(
-        "style",
-        `grid-template-rows: 22px repeat(${weekCount}, ${rowHeight}px);`,
-      );
-    };
-
-    this.calendarResizeObserver = new ResizeObserver(update);
-    if (panel.parentElement) {
-      this.calendarResizeObserver.observe(panel.parentElement);
-    }
-    window.requestAnimationFrame(update);
   }
 
   private renderYear(root: HTMLElement, checkinCountByDate: Map<string, number>) {

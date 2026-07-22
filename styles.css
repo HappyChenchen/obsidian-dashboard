@@ -77,29 +77,28 @@
 
 .dashboard-home__tab-content {
   display: flex;
-  flex: 1 1 0;
+  flex: 0 0 auto;
   flex-direction: column;
-  height: 0;
+  height: auto;
   min-height: 0;
   min-width: 0;
-  overflow-y: auto;
+  overflow: visible;
 }
 
 .dashboard-home__tab-content > .dashboard-study-view,
 .dashboard-home__tab-content > .dashboard-monthly-plan {
-  flex: 1 1 0;
-  height: 100%;
+  flex: 0 0 auto;
+  height: auto;
   min-height: 0;
   width: 100%;
 }
 
 .dashboard-home__tab-content > .dashboard-study-view .dashboard-study-panel {
-  min-height: 100%;
+  min-height: 0;
   padding: 0 0 44px;
 }
 
 .dashboard-home__tab-content > .dashboard-monthly-plan {
-  height: 100%;
   min-height: 0;
 }
 
@@ -939,11 +938,11 @@
   box-sizing: border-box;
   display: flex;
   flex-direction: column;
-  height: 100%;
+  height: auto;
   margin: 0 auto 28px;
   max-width: none;
   min-height: 0;
-  overflow-y: auto;
+  overflow: visible;
   width: 100%;
 }
 
@@ -1014,7 +1013,7 @@
 
 .dashboard-monthly-plan__empty,
 .dashboard-monthly-plan__day {
-  min-height: 0;
+  min-height: 96px;
   min-width: 0;
 }
 
@@ -1025,7 +1024,7 @@
   display: flex;
   flex-direction: column;
   gap: 6px;
-  min-height: 0;
+  min-height: 96px;
   padding: 9px;
 }
 
@@ -1051,7 +1050,7 @@
   font: inherit;
   font-size: 12px;
   line-height: 1.45;
-  min-height: 0;
+  min-height: 68px;
   outline: none;
   padding: 0;
   resize: none;
@@ -1064,7 +1063,8 @@
 
 .dashboard-study-view {
   box-sizing: border-box;
-  overflow: auto;
+  height: auto;
+  overflow: visible;
 }
 
 .dashboard-study-panel {
@@ -1076,7 +1076,7 @@
   height: auto;
   margin: 0 auto 32px;
   max-width: none;
-  min-height: 100%;
+  min-height: 0;
   padding: 36px max(32px, 4vw) 44px;
   width: 100%;
 }
@@ -1174,7 +1174,7 @@
 
 .dashboard-study-calendar__empty,
 .dashboard-study-calendar__day {
-  min-height: 0;
+  min-height: 88px;
   min-width: 0;
 }
 
@@ -1186,7 +1186,7 @@
   display: flex;
   flex-direction: column;
   gap: 5px;
-  min-height: 0;
+  min-height: 88px;
   overflow: hidden;
   padding: 9px;
   transition: background 120ms ease, border-color 120ms ease;
