@@ -734,7 +734,6 @@ class DashboardView extends ItemView {
   }
 
   async onOpen() {
-    this.plugin.collapseOtherRootSplits(this.dashboardLeaf);
     await this.render();
   }
 
