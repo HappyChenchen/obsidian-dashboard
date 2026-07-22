@@ -216,11 +216,10 @@ export default class DashboardPlugin extends Plugin {
     this.app.workspace.revealLeaf(leaf);
   }
 
-  private collapseOtherRootSplits(keepLeaf: WorkspaceLeaf) {
-    const keepParent = keepLeaf.parent;
+  collapseOtherRootSplits(keepLeaf: WorkspaceLeaf) {
     const otherLeaves: WorkspaceLeaf[] = [];
     this.app.workspace.iterateRootLeaves((leaf) => {
-      if (leaf !== keepLeaf && leaf.parent !== keepParent) {
+      if (leaf !== keepLeaf) {
         otherLeaves.push(leaf);
       }
     });
@@ -735,6 +734,7 @@ class DashboardView extends ItemView {
   }
 
   async onOpen() {
+    this.plugin.collapseOtherRootSplits(this.dashboardLeaf);
     await this.render();
   }
 
