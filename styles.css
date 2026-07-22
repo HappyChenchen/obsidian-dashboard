@@ -93,13 +93,11 @@
   width: 100%;
 }
 
-.dashboard-home__tab-content > .dashboard-study-view .dashboard-study-panel {
+.dashboard-home__tab-content > .dashboard-study-view .dashboard-study-panel,
+.dashboard-home__tab-content > .dashboard-monthly-plan {
+  margin: 0;
   min-height: 0;
   padding: 0 0 44px;
-}
-
-.dashboard-home__tab-content > .dashboard-monthly-plan {
-  min-height: 0;
 }
 
 .dashboard-home__header h1 {
