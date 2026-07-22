@@ -208,7 +208,22 @@ export default class DashboardPlugin extends Plugin {
       active: true,
     });
 
+    this.collapseOtherRootSplits(leaf);
     this.app.workspace.revealLeaf(leaf);
+  }
+
+  private collapseOtherRootSplits(keepLeaf: WorkspaceLeaf) {
+    const keepParent = keepLeaf.parent;
+    const otherLeaves: WorkspaceLeaf[] = [];
+    this.app.workspace.iterateRootLeaves((leaf) => {
+      if (leaf !== keepLeaf && leaf.parent !== keepParent) {
+        otherLeaves.push(leaf);
+      }
+    });
+
+    for (const leaf of otherLeaves) {
+      leaf.detach();
+    }
   }
 
   async activateMonthlyDiaryView(month = moment().format("YYYY-MM")) {
