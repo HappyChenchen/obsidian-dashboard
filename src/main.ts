@@ -1140,7 +1140,7 @@ class DashboardView extends ItemView {
     const weekCount = Math.ceil((firstDay.day() + month.daysInMonth()) / 7);
     grid.setAttr(
       "style",
-      `grid-template-rows: 24px repeat(${weekCount}, minmax(52px, auto));`,
+      `grid-template-rows: 24px repeat(${weekCount}, minmax(44px, auto));`,
     );
     for (let index = 0; index < firstDay.day(); index += 1) {
       grid.createDiv({ cls: "dashboard-monthly-plan__empty" });
@@ -1194,7 +1194,7 @@ class DashboardView extends ItemView {
       const gridGaps = 8 * weekCount;
       const reservedHeight = header.offsetHeight + 24 + gridGaps;
       const rowHeight = Math.max(
-        52,
+        44,
         Math.floor((availableHeight - reservedHeight) / weekCount),
       );
       grid.setAttr(
@@ -1845,7 +1845,7 @@ class StudyTrackerView extends ItemView {
     const weekCount = Math.ceil((firstDay.day() + this.cursor.daysInMonth()) / 7);
     calendar.setAttr(
       "style",
-      `grid-template-rows: 22px repeat(${weekCount}, minmax(44px, auto));`,
+      `grid-template-rows: 22px repeat(${weekCount}, minmax(40px, auto));`,
     );
     for (let index = 0; index < firstDay.day(); index += 1) {
       calendar.createDiv({ cls: "dashboard-study-calendar__empty" });
@@ -1878,7 +1878,7 @@ class StudyTrackerView extends ItemView {
         34 +
         gridGaps;
       const rowHeight = Math.max(
-        44,
+        40,
         Math.floor((availableHeight - reservedHeight) / weekCount),
       );
       calendar.setAttr(

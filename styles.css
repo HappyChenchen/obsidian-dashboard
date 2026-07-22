@@ -77,8 +77,9 @@
 
 .dashboard-home__tab-content {
   display: flex;
-  flex: 1 1 auto;
+  flex: 1 1 0;
   flex-direction: column;
+  height: 0;
   min-height: 0;
   min-width: 0;
   overflow-y: auto;
@@ -86,7 +87,7 @@
 
 .dashboard-home__tab-content > .dashboard-study-view,
 .dashboard-home__tab-content > .dashboard-monthly-plan {
-  flex: 1 1 auto;
+  flex: 1 1 0;
   height: 100%;
   min-height: 0;
   width: 100%;
