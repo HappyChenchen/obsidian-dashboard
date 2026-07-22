@@ -139,6 +139,10 @@ export default class DashboardPlugin extends Plugin {
     );
 
     this.app.workspace.onLayoutReady(() => {
+      const dashboardLeaf = this.app.workspace.getLeavesOfType(VIEW_TYPE_DASHBOARD)[0];
+      if (dashboardLeaf) {
+        this.collapseOtherRootSplits(dashboardLeaf);
+      }
       if (this.settings.openOnStartup) {
         this.activateView();
       }
