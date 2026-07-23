@@ -86,6 +86,7 @@
 }
 
 .dashboard-home__tab-content > .dashboard-study-view,
+.dashboard-home__tab-content.dashboard-study-view,
 .dashboard-home__tab-content > .dashboard-monthly-plan {
   flex: 0 0 auto;
   height: auto;
@@ -93,11 +94,13 @@
   width: 100%;
 }
 
-.dashboard-home__tab-content > .dashboard-study-view .dashboard-study-panel,
+.dashboard-home__tab-content.dashboard-study-view > .dashboard-study-panel,
 .dashboard-home__tab-content > .dashboard-monthly-plan {
+  box-sizing: border-box;
   margin: 0;
   min-height: 0;
   padding: 0 0 44px;
+  width: 100%;
 }
 
 .dashboard-home__header h1 {
