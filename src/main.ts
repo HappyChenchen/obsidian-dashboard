@@ -75,6 +75,7 @@ const MONTHLY_DIARY_FILTERS: Array<{ id: MonthlyDiaryFilter; label: string }> = 
 export default class DashboardPlugin extends Plugin {
   settings: DashboardSettings = DEFAULT_SETTINGS;
   private refreshTimer?: number;
+  private layoutCleanupTimer?: number;
 
   async onload() {
     await this.loadSettings();
@@ -144,12 +145,21 @@ export default class DashboardPlugin extends Plugin {
         this.collapseOtherRootSplits(dashboardLeaf);
       }
       if (this.settings.openOnStartup) {
-        this.activateView();
+        void this.activateView();
       }
+
+      // Obsidian may finish restoring a split just after layout-ready fires.
+      // Re-check once after that restore so duplicate dashboard leaves cannot
+      // leave the home view trapped in a shortened pane.
+      this.layoutCleanupTimer = window.setTimeout(() => {
+        const leaf = this.app.workspace.getLeavesOfType(VIEW_TYPE_DASHBOARD)[0];
+        if (leaf) this.collapseOtherRootSplits(leaf);
+      }, 300);
     });
   }
 
   onunload() {
+    window.clearTimeout(this.layoutCleanupTimer);
     this.app.workspace.detachLeavesOfType(VIEW_TYPE_DASHBOARD);
     this.app.workspace.detachLeavesOfType(VIEW_TYPE_MONTHLY_DIARY);
     this.app.workspace.detachLeavesOfType(VIEW_TYPE_STUDY_TRACKER);
@@ -217,15 +227,26 @@ export default class DashboardPlugin extends Plugin {
   }
 
   collapseOtherRootSplits(keepLeaf: WorkspaceLeaf) {
-    const otherLeaves: WorkspaceLeaf[] = [];
+    const rootLeaves: WorkspaceLeaf[] = [];
     this.app.workspace.iterateRootLeaves((leaf) => {
-      if (leaf !== keepLeaf) {
-        otherLeaves.push(leaf);
-      }
+      rootLeaves.push(leaf);
     });
 
-    for (const leaf of otherLeaves) {
-      leaf.detach();
+    const dashboardLeaves = new Set(
+      this.app.workspace.getLeavesOfType(VIEW_TYPE_DASHBOARD),
+    );
+
+    for (const leaf of rootLeaves) {
+      if (leaf === keepLeaf) continue;
+
+      const viewType = leaf.view?.getViewType?.();
+      const isEmptyLeaf = viewType === "empty" || viewType === "empty-view";
+
+      // Only remove duplicate dashboard leaves or empty placeholders. A real
+      // note opened in another pane belongs to the user and must stay open.
+      if (dashboardLeaves.has(leaf) || isEmptyLeaf) {
+        leaf.detach();
+      }
     }
   }
 
@@ -761,7 +782,7 @@ class DashboardView extends ItemView {
     const content = root.createDiv({ cls: "dashboard-home__tab-content" });
     if (this.activeTab === "study") {
       if (!this.studyTrackerRenderer) {
-        this.studyTrackerRenderer = new StudyTrackerView(this.dashboardLeaf, this.plugin);
+        this.studyTrackerRenderer = StudyTrackerView.createEmbedded(this.plugin);
       }
       await this.studyTrackerRenderer.renderTo(content);
       return;
@@ -1694,6 +1715,17 @@ class StudyTrackerView extends ItemView {
   constructor(leaf: WorkspaceLeaf, plugin: DashboardPlugin) {
     super(leaf);
     this.plugin = plugin;
+  }
+
+  static createEmbedded(plugin: DashboardPlugin): StudyTrackerView {
+    // An embedded tracker is a renderer only. Constructing ItemView with the
+    // dashboard leaf would register a second view container in Obsidian.
+    const view = Object.create(this.prototype) as StudyTrackerView;
+    view.plugin = plugin;
+    view.mode = "month";
+    view.cursor = moment().startOf("month");
+    view.selectedDate = moment().format("YYYY-MM-DD");
+    return view;
   }
 
   getViewType() {
