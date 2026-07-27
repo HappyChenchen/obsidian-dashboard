@@ -78,7 +78,6 @@ export interface RecentThought {
   previewSections: Array<{ label: string; text: string }>;
   file: TFile;
   updated: number;
-  tags: string[];
 }
 
 export interface DailyMonthSummary {

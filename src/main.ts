@@ -382,11 +382,6 @@ export default class DashboardPlugin extends Plugin {
             ),
             file,
             updated: file.stat.mtime,
-            tags: extractNoteTags(
-              content,
-              frontmatter,
-              cache?.tags?.map((tag) => tag.tag) ?? [],
-            ),
           });
         }
       }
@@ -1069,10 +1064,6 @@ class DashboardView extends ItemView {
       heading.createEl("span", {
         text: moment(thought.date).format("MM-DD"),
       });
-      const tags = heading.createDiv({ cls: "dashboard-home__thought-tags" });
-      for (const tag of thought.tags) {
-        tags.createEl("span", { text: `#${tag}` });
-      }
       const preview = item.createDiv({ cls: "dashboard-home__thought-preview" });
       if (thought.previewSections.length === 0) {
         preview.createEl("span", {
@@ -2380,27 +2371,6 @@ function extractRawDailyPreview(content: string): string {
     .replace(/^[-*]\s+/gm, "")
     .replace(/\s+/g, " ")
     .trim();
-}
-
-function extractNoteTags(
-  content: string,
-  frontmatter: Record<string, unknown>,
-  metadataTags: string[],
-): string[] {
-  const frontmatterValue = frontmatter.tags;
-  const frontmatterTags = Array.isArray(frontmatterValue)
-    ? frontmatterValue.map((tag) => String(tag))
-    : typeof frontmatterValue === "string"
-      ? frontmatterValue.split(/[\s,]+/)
-      : [];
-  const inlineTags = Array.from(
-    content.matchAll(/#[\p{Letter}\p{Number}/_-]+/gu),
-  ).map((match) => match[0]);
-  const normalized = [...frontmatterTags, ...metadataTags, ...inlineTags]
-    .map((tag) => tag.trim().replace(/^#/, "").toLowerCase())
-    .filter((tag) => Boolean(tag) && tag !== "daily");
-
-  return Array.from(new Set(normalized)).slice(0, 5);
 }
 
 function getDailyValue(

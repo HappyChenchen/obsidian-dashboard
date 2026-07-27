@@ -697,18 +697,6 @@
   font-size: 12px;
 }
 
-.dashboard-home__thought-tags {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 6px;
-  margin-left: auto;
-}
-
-.dashboard-home__thought-tags span {
-  color: var(--text-accent);
-  font-size: 11px;
-}
-
 .dashboard-home__thought-item p {
   color: var(--text-muted);
   font-size: 13px;
