@@ -738,14 +738,17 @@
   width: 13px;
 }
 
-.dashboard-home__thought-preview-text,
-.dashboard-home__thought-preview-empty {
+.dashboard-home__thought-preview-text {
   color: var(--text-muted);
+  display: -webkit-box;
   font-size: 13px;
   line-height: 1.45;
   min-width: 0;
   overflow-wrap: anywhere;
+  overflow: hidden;
   white-space: pre-wrap;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 3;
 }
 
 .dashboard-home__task {

@@ -375,12 +375,15 @@ export default class DashboardPlugin extends Plugin {
         dailyTodosByDate.set(dailyDate, dailyTodos);
 
         if (dailyDate <= today) {
-          recentThoughts.push({
-            date: dailyDate,
-            previewSections: getRecentInspirationPreview(dailySectionsForFile),
-            file,
-            updated: file.stat.mtime,
-          });
+          const previewSections = getRecentInspirationPreview(dailySectionsForFile);
+          if (previewSections.length > 0) {
+            recentThoughts.push({
+              date: dailyDate,
+              previewSections,
+              file,
+              updated: file.stat.mtime,
+            });
+          }
         }
       }
 
@@ -1042,7 +1045,7 @@ class DashboardView extends ItemView {
     }
 
     if (data.recentThoughts.length === 0) {
-      container.createEl("p", { cls: "dashboard-home__muted", text: "还没有 Daily 笔记。" });
+      container.createEl("p", { cls: "dashboard-home__muted", text: "还没有想法。" });
       return;
     }
 
@@ -1063,33 +1066,19 @@ class DashboardView extends ItemView {
         text: moment(thought.date).format("MM-DD"),
       });
       const preview = item.createDiv({ cls: "dashboard-home__thought-preview" });
-      if (thought.previewSections.length === 0) {
-        preview.createEl("span", {
-          cls: "dashboard-home__thought-preview-empty",
-          text: "暂无想法",
+      for (const section of thought.previewSections) {
+        const row = preview.createDiv({
+          cls: "dashboard-home__thought-preview-row",
         });
-      } else {
-        for (const section of thought.previewSections) {
-          const row = preview.createDiv({
-            cls: [
-              "dashboard-home__thought-preview-row",
-              section.label ? "" : "is-unlabeled",
-            ]
-              .filter(Boolean)
-              .join(" "),
-          });
-          if (section.label) {
-            const label = row.createEl("span", {
-              cls: "dashboard-home__thought-preview-label",
-            });
-            setIcon(label, "lightbulb");
-            label.createEl("span", { text: section.label });
-          }
-          row.createEl("span", {
-            cls: "dashboard-home__thought-preview-text",
-            text: section.text,
-          });
-        }
+        const label = row.createEl("span", {
+          cls: "dashboard-home__thought-preview-label",
+        });
+        setIcon(label, "lightbulb");
+        label.createEl("span", { text: section.label });
+        row.createEl("span", {
+          cls: "dashboard-home__thought-preview-text",
+          text: section.text,
+        });
       }
     }
   }
