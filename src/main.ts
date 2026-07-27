@@ -176,6 +176,7 @@ export default class DashboardPlugin extends Plugin {
     this.settings.visiblePanels = normalizePanelVisibility(this.settings.visiblePanels);
     this.settings.studyCheckins = normalizeStudyCheckins(this.settings.studyCheckins);
     this.settings.monthlyPlan = normalizeMonthlyPlan(this.settings.monthlyPlan);
+    this.settings.monthlyPlanDone = normalizeMonthlyPlanDone(this.settings.monthlyPlanDone);
   }
 
   async saveSettings() {
@@ -400,6 +401,24 @@ export default class DashboardPlugin extends Plugin {
       }
     }
 
+    for (const [date, text] of Object.entries(this.settings.monthlyPlan)) {
+      const sourceFile = this.getDailyFile(date) ?? files[0];
+      if (!sourceFile) {
+        continue;
+      }
+
+      tasks.push({
+        text,
+        done: Boolean(this.settings.monthlyPlanDone[date]),
+        due: date,
+        file: sourceFile,
+        line: -1,
+        tags: [],
+        source: "monthly-plan",
+        monthlyPlanDate: date,
+      });
+    }
+
     const allOpenTasks = dedupeTasksByText(tasks.filter((task) => !task.done))
       .sort(compareTasksForDashboard);
     const orderedTasks = applyTaskOrder(allOpenTasks, this.settings.taskOrder);
@@ -487,11 +506,28 @@ export default class DashboardPlugin extends Plugin {
 
     const value = text.trim();
     if (value) {
+      if (this.settings.monthlyPlan[date] !== value) {
+        delete this.settings.monthlyPlanDone[date];
+      }
       this.settings.monthlyPlan[date] = value;
     } else {
       delete this.settings.monthlyPlan[date];
+      delete this.settings.monthlyPlanDone[date];
     }
     await this.saveData(this.settings);
+  }
+
+  async toggleMonthlyPlanTask(date: string) {
+    if (!this.settings.monthlyPlan[date]) {
+      return;
+    }
+
+    this.settings.monthlyPlanDone[date] = !Boolean(
+      this.settings.monthlyPlanDone[date],
+    );
+    await this.saveData(this.settings);
+    this.refreshDashboardViews();
+    this.refreshMonthlyDiaryViews();
   }
 
   getDailyFile(date: string): TFile | undefined {
@@ -707,6 +743,11 @@ export default class DashboardPlugin extends Plugin {
   }
 
   async toggleTask(task: DashboardTask) {
+    if (task.source === "monthly-plan" && task.monthlyPlanDate) {
+      await this.toggleMonthlyPlanTask(task.monthlyPlanDate);
+      return;
+    }
+
     const content = await this.app.vault.cachedRead(task.file);
     const lines = content.split("\n");
     const line = lines[task.line];
@@ -1137,9 +1178,22 @@ class DashboardView extends ItemView {
       const body = row.createDiv({ cls: "dashboard-home__task-body" });
       body.createEl("span", { text: stripTaskMetadata(task.text) });
       const meta = body.createEl("small", {
-        text: task.due ? `${task.due} · ${task.file.basename}` : task.file.basename,
+        text: task.source === "monthly-plan"
+          ? `${task.due ?? ""} · 月度计划`
+          : task.due
+            ? `${task.due} · ${task.file.basename}`
+            : task.file.basename,
       });
-      meta.addEventListener("click", () => this.plugin.openFile(task.file));
+      meta.addEventListener("click", () => {
+        if (task.source === "monthly-plan" && task.monthlyPlanDate) {
+          this.activeTab = "monthly";
+          this.monthlyPlanMonth = task.monthlyPlanDate.slice(0, 7);
+          void this.render();
+          return;
+        }
+
+        void this.plugin.openFile(task.file);
+      });
     }
   }
 
@@ -2249,6 +2303,20 @@ function normalizeMonthlyPlan(value: unknown): Record<string, string> {
   for (const [date, text] of Object.entries(value)) {
     if (moment(date, "YYYY-MM-DD", true).isValid() && typeof text === "string" && text.trim()) {
       normalized[date] = text;
+    }
+  }
+  return normalized;
+}
+
+function normalizeMonthlyPlanDone(value: unknown): Record<string, boolean> {
+  if (!value || typeof value !== "object") {
+    return {};
+  }
+
+  const normalized: Record<string, boolean> = {};
+  for (const [date, done] of Object.entries(value)) {
+    if (moment(date, "YYYY-MM-DD", true).isValid() && typeof done === "boolean") {
+      normalized[date] = done;
     }
   }
   return normalized;

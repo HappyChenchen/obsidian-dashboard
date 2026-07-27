@@ -26,6 +26,7 @@ export interface DashboardSettings {
   visiblePanels: Record<DashboardPanelId, boolean>;
   studyCheckins: StudyCheckin[];
   monthlyPlan: Record<string, string>;
+  monthlyPlanDone: Record<string, boolean>;
 }
 
 export interface StudyCourse {
@@ -48,6 +49,8 @@ export interface DashboardTask {
   file: TFile;
   line: number;
   tags: string[];
+  source?: "note" | "monthly-plan";
+  monthlyPlanDate?: string;
 }
 
 export interface DailySection {

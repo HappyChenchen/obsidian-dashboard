@@ -145,6 +145,10 @@ export function dedupeTasksByText(tasks: DashboardTask[]): DashboardTask[] {
 }
 
 export function getTaskKey(task: DashboardTask): string {
+  if (task.source === "monthly-plan" && task.monthlyPlanDate) {
+    return `monthly-plan:${task.monthlyPlanDate}`;
+  }
+
   return `${task.file.path}:${task.line}:${task.text}`;
 }
 
@@ -235,6 +239,10 @@ function normalizeDateParts(
 }
 
 function getTaskLocation(task: DashboardTask): string {
+  if (task.source === "monthly-plan" && task.monthlyPlanDate) {
+    return `monthly-plan:${task.monthlyPlanDate}`;
+  }
+
   return `${task.file.path}:${task.line}`;
 }
 
@@ -243,6 +251,10 @@ function normalizeTaskText(text: string): string {
 }
 
 function getTaskPriority(task: DashboardTask): number {
+  if (task.source === "monthly-plan") {
+    return 1;
+  }
+
   if (task.file.path.includes("/daily/") && task.file.basename.length === 10) {
     return 0;
   }

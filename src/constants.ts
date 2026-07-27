@@ -52,4 +52,5 @@ export const DEFAULT_SETTINGS: DashboardSettings = {
   visiblePanels: DEFAULT_VISIBLE_PANELS,
   studyCheckins: [],
   monthlyPlan: {},
+  monthlyPlanDone: {},
 };
