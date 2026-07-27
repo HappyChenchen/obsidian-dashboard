@@ -8,7 +8,6 @@ export const DAILY_TEMPLATE_SECTIONS = [
   "今日todo",
   "今日关联笔记",
   "想法/思考",
-  "读书笔记",
 ];
 
 export const DEFAULT_PANEL_ORDER: DashboardPanelId[] = [
