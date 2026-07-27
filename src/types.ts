@@ -5,7 +5,6 @@ export type DashboardPanelId =
   | "daily"
   | "todo"
   | "study"
-  | "reading"
   | "database"
   | "projects";
 export type DashboardPanelSize = "compact" | "normal" | "wide" | "tall" | "large";

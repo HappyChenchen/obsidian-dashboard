@@ -853,15 +853,13 @@
 }
 
 .dashboard-home__project,
-.dashboard-home__library-item,
-.dashboard-home__reading-item {
+.dashboard-home__library-item {
   border-top: 1px solid var(--dashboard-border);
   padding: 10px 0;
 }
 
 .dashboard-home__project:first-of-type,
-.dashboard-home__library-item:first-of-type,
-.dashboard-home__reading-item:first-of-type {
+.dashboard-home__library-item:first-of-type {
   border-top: 0;
   padding-top: 0;
 }

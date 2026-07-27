@@ -849,11 +849,6 @@ class DashboardView extends ItemView {
       return;
     }
 
-    if (panelId === "reading") {
-      this.renderReading(root, data);
-      return;
-    }
-
     if (panelId === "database") {
       this.renderDatabase(root, data);
       return;
@@ -1401,38 +1396,6 @@ class DashboardView extends ItemView {
       });
       row.createEl("span", { text: item.kind === "book" ? "书籍" : "文章" });
       row.createEl("small", { text: item.status });
-    }
-  }
-
-  private renderReading(root: HTMLElement, data: DashboardData) {
-    const card = createCard(root, "正在阅读", "is-reading", "reading", this);
-    const books = data.books
-      .filter((book) => book.status.toLowerCase() === "reading")
-      .slice(0, 4);
-
-    if (books.length === 0) {
-      card.createEl("p", {
-        cls: "dashboard-home__muted",
-        text: "还没有正在阅读的书。",
-      });
-      return;
-    }
-
-    for (const book of books) {
-      const row = card.createDiv({ cls: "dashboard-home__reading-item" });
-      const heading = row.createDiv({ cls: "dashboard-home__project-heading" });
-      heading.createEl("button", { text: book.title }).addEventListener("click", () => {
-        this.plugin.openFile(book.file);
-      });
-      heading.createEl("span", {
-        text: book.progress > 0 ? `${book.progress}%` : "待记录",
-      });
-
-      const bar = row.createDiv({ cls: "dashboard-home__progress" });
-      bar.createDiv({
-        cls: "dashboard-home__progress-fill",
-        attr: { style: `width: ${book.progress}%` },
-      });
     }
   }
 

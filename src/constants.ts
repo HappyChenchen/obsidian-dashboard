@@ -16,7 +16,6 @@ export const DEFAULT_PANEL_ORDER: DashboardPanelId[] = [
   "daily",
   "todo",
   "study",
-  "reading",
   "database",
   "projects",
 ];
@@ -26,7 +25,6 @@ export const DEFAULT_PANEL_SIZES: Record<DashboardPanelId, DashboardPanelSize> =
   daily: "tall",
   todo: "tall",
   study: "normal",
-  reading: "normal",
   database: "wide",
   projects: "normal",
 };
@@ -36,7 +34,6 @@ export const DEFAULT_VISIBLE_PANELS: Record<DashboardPanelId, boolean> = {
   daily: true,
   todo: true,
   study: false,
-  reading: true,
   database: false,
   projects: false,
 };
