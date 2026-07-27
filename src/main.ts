@@ -41,6 +41,7 @@ import {
   getTasksForDate,
   getTaskKey,
   getTaskCategory,
+  inferTaskCategory,
   stripTaskMetadata,
 } from "./tasks";
 import {
@@ -434,7 +435,8 @@ export default class DashboardPlugin extends Plugin {
         file: sourceFile,
         line: -1,
         tags: [],
-        category: this.settings.monthlyPlanCategory[date],
+        category:
+          this.settings.monthlyPlanCategory[date] ?? inferTaskCategory(text),
         source: "monthly-plan",
         monthlyPlanDate: date,
       });
@@ -624,7 +626,9 @@ export default class DashboardPlugin extends Plugin {
           review: "",
           monthlyPlan: this.settings.monthlyPlan[date] ?? "",
           monthlyPlanDone: Boolean(this.settings.monthlyPlanDone[date]),
-          monthlyPlanCategory: this.settings.monthlyPlanCategory[date],
+          monthlyPlanCategory:
+            this.settings.monthlyPlanCategory[date] ??
+            inferTaskCategory(this.settings.monthlyPlan[date] ?? ""),
         });
         continue;
       }
@@ -659,7 +663,9 @@ export default class DashboardPlugin extends Plugin {
         ], ["自我评价", "今日评价", "复盘"]),
         monthlyPlan: this.settings.monthlyPlan[date] ?? "",
         monthlyPlanDone: Boolean(this.settings.monthlyPlanDone[date]),
-        monthlyPlanCategory: this.settings.monthlyPlanCategory[date],
+        monthlyPlanCategory:
+          this.settings.monthlyPlanCategory[date] ??
+          inferTaskCategory(this.settings.monthlyPlan[date] ?? ""),
       });
     }
 
@@ -1380,7 +1386,10 @@ class DashboardView extends ItemView {
       for (const item of DASHBOARD_CATEGORIES) {
         category.createEl("option", { text: item, attr: { value: item } });
       }
-      category.value = this.plugin.settings.monthlyPlanCategory[date] ?? "";
+      category.value =
+        this.plugin.settings.monthlyPlanCategory[date] ??
+        inferTaskCategory(this.plugin.settings.monthlyPlan[date] ?? "") ??
+        "";
       category.addEventListener("change", () => {
         void this.plugin.saveMonthlyPlanCategory(
           date,
@@ -2526,7 +2535,8 @@ function getPanelSizeClass(size: DashboardPanelSize): string {
 function categorizeTasks(tasks: DashboardTask[]): DashboardTask[] {
   return tasks.map((task) => ({
     ...task,
-    category: getTaskCategory(task.tags),
+    category:
+      getTaskCategory(task.tags) ?? inferTaskCategory(task.text, task.file.path),
   }));
 }
 
