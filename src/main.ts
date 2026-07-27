@@ -8,6 +8,7 @@ import {
   TFile,
   WorkspaceLeaf,
   moment,
+  setIcon,
 } from "obsidian";
 import {
   DAILY_TEMPLATE_SECTIONS,
@@ -376,10 +377,7 @@ export default class DashboardPlugin extends Plugin {
         if (dailyDate <= today) {
           recentThoughts.push({
             date: dailyDate,
-            previewSections: getRecentDailyPreviewSections(
-              content,
-              dailySectionsForFile,
-            ),
+            previewSections: getRecentInspirationPreview(dailySectionsForFile),
             file,
             updated: file.stat.mtime,
           });
@@ -1068,7 +1066,7 @@ class DashboardView extends ItemView {
       if (thought.previewSections.length === 0) {
         preview.createEl("span", {
           cls: "dashboard-home__thought-preview-empty",
-          text: "暂无记录",
+          text: "暂无想法",
         });
       } else {
         for (const section of thought.previewSections) {
@@ -1081,10 +1079,11 @@ class DashboardView extends ItemView {
               .join(" "),
           });
           if (section.label) {
-            row.createEl("span", {
+            const label = row.createEl("span", {
               cls: "dashboard-home__thought-preview-label",
-              text: section.label,
             });
+            setIcon(label, "lightbulb");
+            label.createEl("span", { text: section.label });
           }
           row.createEl("span", {
             cls: "dashboard-home__thought-preview-text",
@@ -2311,8 +2310,7 @@ function getDailyText(sections: DailySection[], headings: string[]): string {
   );
 }
 
-function getRecentDailyPreviewSections(
-  content: string,
+function getRecentInspirationPreview(
   sections: DailySection[],
 ): Array<{ label: string; text: string }> {
   const previews: Array<{ label: string; text: string }> = [];
@@ -2325,52 +2323,16 @@ function getRecentDailyPreviewSections(
     }
 
     const heading = section.heading.trim();
-    const normalizedHeading = heading.toLowerCase();
-    const label = normalizedHeading.includes("todo")
-      ? "TODO"
-      : ["今日灵感", "灵感", "想法/思考"].includes(heading)
-        ? "想法"
-        : heading === "今日关联笔记"
-          ? "关联"
-          : "";
+    if (!["今日灵感", "灵感", "想法/思考"].includes(heading)) {
+      continue;
+    }
+
     const snippet = truncateText(text, remaining);
-    previews.push({ label, text: snippet });
+    previews.push({ label: "想法", text: snippet });
     remaining -= snippet.length + 2;
   }
 
-  if (previews.length > 0) {
-    return previews;
-  }
-
-  const fallback = extractRawDailyPreview(content);
-  return fallback ? [{ label: "", text: truncateText(fallback, 150) }] : [];
-}
-
-function extractRawDailyPreview(content: string): string {
-  const lines = content.split("\n");
-  const bodyLines: string[] = [];
-  let inFrontmatter = false;
-
-  for (const rawLine of lines) {
-    const line = rawLine.trim();
-    if (line === "---" && bodyLines.length === 0) {
-      inFrontmatter = !inFrontmatter;
-      continue;
-    }
-    if (inFrontmatter || !line || /^#{1,6}\s+/.test(line)) {
-      continue;
-    }
-    bodyLines.push(line);
-  }
-
-  return bodyLines
-    .join(" ")
-    .replace(/<[^>]+>/g, " ")
-    .replace(/!?\[\[[^\]]+\]\]/g, "")
-    .replace(/[-*]\s+\[[ xX-]\]\s*/g, "")
-    .replace(/^[-*]\s+/gm, "")
-    .replace(/\s+/g, " ")
-    .trim();
+  return previews;
 }
 
 function getDailyValue(

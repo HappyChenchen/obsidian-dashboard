@@ -723,11 +723,19 @@
 }
 
 .dashboard-home__thought-preview-label {
+  align-items: center;
   color: var(--text-accent);
+  display: inline-flex;
   font-size: 11px;
   font-weight: 700;
+  gap: 4px;
   line-height: 1.45;
   min-width: 36px;
+}
+
+.dashboard-home__thought-preview-label svg {
+  height: 13px;
+  width: 13px;
 }
 
 .dashboard-home__thought-preview-text,
