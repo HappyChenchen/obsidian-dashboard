@@ -1179,17 +1179,22 @@ class DashboardView extends ItemView {
   private renderTasks(root: HTMLElement, data: DashboardData) {
     const card = createCard(root, "TodoList", "is-todo", "todo", this, (actions) => {
       const filters = actions.createDiv({ cls: "dashboard-home__category-filter" });
+      const select = filters.createEl("select", {
+        cls: "dashboard-home__category-select",
+        attr: { "aria-label": "Todo 分类" },
+      });
       for (const category of DASHBOARD_CATEGORY_FILTERS) {
-        const button = filters.createEl("button", {
-          cls: category.id === this.todoCategory ? "is-active" : "",
+        select.createEl("option", {
           text: category.label,
-        });
-        button.addEventListener("click", (event) => {
-          event.stopPropagation();
-          this.todoCategory = category.id;
-          void this.render();
+          attr: { value: category.id },
         });
       }
+      select.value = this.todoCategory;
+      select.addEventListener("click", (event) => event.stopPropagation());
+      select.addEventListener("change", () => {
+        this.todoCategory = select.value as DashboardCategoryFilter;
+        void this.render();
+      });
     });
 
     const tasks = data.tasks.filter((task) => {
