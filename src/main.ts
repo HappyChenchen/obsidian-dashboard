@@ -374,6 +374,16 @@ export default class DashboardPlugin extends Plugin {
         dailyTodosByDate.set(dailyDate, dailyTodos);
 
         if (dailyDate <= today) {
+          const todoText = getDailyText(dailySectionsForFile, [
+            this.settings.defaultTaskSection,
+            "今日todo",
+            "月度todo",
+          ]);
+          const inspirationText = getDailyText(dailySectionsForFile, [
+            "今日灵感",
+            "灵感",
+            "想法/思考",
+          ]);
           recentThoughts.push({
             date: dailyDate,
             text: getRecentDailyPreview(content, dailySectionsForFile),
@@ -384,6 +394,10 @@ export default class DashboardPlugin extends Plugin {
               frontmatter,
               cache?.tags?.map((tag) => tag.tag) ?? [],
             ),
+            markers: [
+              ...(todoText ? ["todo" as const] : []),
+              ...(inspirationText ? ["inspiration" as const] : []),
+            ],
           });
         }
       }
@@ -1067,6 +1081,12 @@ class DashboardView extends ItemView {
         text: moment(thought.date).format("MM-DD"),
       });
       const tags = heading.createDiv({ cls: "dashboard-home__thought-tags" });
+      for (const marker of thought.markers) {
+        tags.createEl("span", {
+          cls: "is-marker",
+          text: marker === "todo" ? "✓ Todo" : "✦ 想法",
+        });
+      }
       for (const tag of thought.tags) {
         tags.createEl("span", { text: `#${tag}` });
       }

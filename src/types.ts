@@ -79,6 +79,7 @@ export interface RecentThought {
   file: TFile;
   updated: number;
   tags: string[];
+  markers: Array<"todo" | "inspiration">;
 }
 
 export interface DailyMonthSummary {
