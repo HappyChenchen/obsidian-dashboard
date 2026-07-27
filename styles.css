@@ -666,7 +666,7 @@
   border-top: 1px solid var(--dashboard-border);
   cursor: pointer;
   margin: 0 -6px;
-  padding: 10px 0;
+  padding: 7px 0;
   padding-left: 6px;
   padding-right: 6px;
   transition: background 120ms ease;
@@ -709,7 +709,7 @@
 .dashboard-home__thought-preview {
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: 4px;
   min-width: 0;
   overflow: hidden;
   width: 100%;
@@ -718,8 +718,8 @@
 .dashboard-home__thought-preview-row {
   align-items: flex-start;
   display: grid;
-  gap: 8px;
-  grid-template-columns: 80px minmax(0, 1fr);
+  gap: 6px;
+  grid-template-columns: 56px minmax(0, 1fr);
   min-width: 0;
   width: 100%;
 }
@@ -728,12 +728,12 @@
   align-items: center;
   color: var(--text-accent);
   display: inline-flex;
-  font-size: 11px;
+  font-size: 13px;
   font-weight: 700;
   gap: 4px;
   line-height: 1.45;
   min-width: 0;
-  width: 80px;
+  width: 56px;
 }
 
 .dashboard-home__thought-preview-label svg {
