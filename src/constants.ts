@@ -53,4 +53,5 @@ export const DEFAULT_SETTINGS: DashboardSettings = {
   studyCheckins: [],
   monthlyPlan: {},
   monthlyPlanDone: {},
+  monthlyPlanCategory: {},
 };

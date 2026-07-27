@@ -1,5 +1,15 @@
 import type { TFile } from "obsidian";
-import type { DashboardTask } from "./types";
+import type { DashboardCategory, DashboardTask } from "./types";
+
+const TASK_CATEGORIES: DashboardCategory[] = ["生活", "工作", "公考", "学习", "其他"];
+
+export function getTaskCategory(tags: string[]): DashboardCategory | undefined {
+  return tags
+    .map((tag) => tag.replace(/^#/, ""))
+    .find((tag): tag is DashboardCategory =>
+      TASK_CATEGORIES.includes(tag as DashboardCategory),
+    );
+}
 
 export function extractTasks(content: string, file: TFile): DashboardTask[] {
   return content

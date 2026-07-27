@@ -272,6 +272,31 @@
   gap: 6px;
 }
 
+.dashboard-home__category-filter {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 2px;
+  justify-content: flex-end;
+}
+
+.dashboard-home__category-filter button {
+  background: transparent;
+  border: 0;
+  border-radius: 999px;
+  box-shadow: none;
+  color: var(--dashboard-text-muted);
+  font-size: 11px;
+  min-height: 22px;
+  padding: 0 7px;
+}
+
+.dashboard-home__category-filter button:hover,
+.dashboard-home__category-filter button.is-active {
+  background: color-mix(in srgb, var(--dashboard-accent), transparent 86%);
+  color: var(--text-accent);
+}
+
 .dashboard-home__card-header-actions button {
   font-size: 12px;
   min-height: 28px;
@@ -354,6 +379,7 @@
 }
 
 .dashboard-monthly-panel__filters,
+.dashboard-monthly-panel__category-filters,
 .dashboard-monthly-panel__nav {
   align-items: center;
   display: flex;
@@ -363,6 +389,13 @@
 }
 
 .dashboard-monthly-panel__filters {
+  background: var(--background-secondary);
+  border: 1px solid var(--dashboard-monthly-border);
+  border-radius: 999px;
+  padding: 2px;
+}
+
+.dashboard-monthly-panel__category-filters {
   background: var(--background-secondary);
   border: 1px solid var(--dashboard-monthly-border);
   border-radius: 999px;
@@ -383,6 +416,23 @@
 
 .dashboard-monthly-panel__filters button.is-active {
   background: var(--interactive-accent);
+  color: var(--text-on-accent);
+}
+
+.dashboard-monthly-panel__category-filters button {
+  background: transparent;
+  border: 0;
+  border-radius: 999px;
+  box-shadow: none;
+  color: var(--text-muted);
+  font-size: 11px;
+  line-height: 1;
+  min-height: 22px;
+  padding: 0 8px;
+}
+
+.dashboard-monthly-panel__category-filters button.is-active {
+  background: color-mix(in srgb, var(--interactive-accent), transparent 12%);
   color: var(--text-on-accent);
 }
 
@@ -408,6 +458,16 @@
 }
 
 .dashboard-monthly-panel__filters button.is-active:hover {
+  background: var(--interactive-accent);
+  color: var(--text-on-accent);
+}
+
+.dashboard-monthly-panel__category-filters button:hover {
+  background: var(--background-modifier-hover);
+  color: var(--text-normal);
+}
+
+.dashboard-monthly-panel__category-filters button.is-active:hover {
   background: var(--interactive-accent);
   color: var(--text-on-accent);
 }
@@ -801,6 +861,12 @@
   cursor: pointer;
 }
 
+.dashboard-home__task-body .dashboard-home__task-category {
+  color: var(--text-accent);
+  cursor: default;
+  font-size: 11px;
+}
+
 .dashboard-home__calendar {
   display: grid;
   gap: 6px;
@@ -1109,6 +1175,21 @@
 
 .dashboard-monthly-plan__input::placeholder {
   color: var(--text-faint);
+}
+
+.dashboard-monthly-plan__category {
+  align-self: flex-start;
+  background: transparent;
+  border: 0;
+  color: var(--text-muted);
+  font-size: 10px;
+  height: 20px;
+  max-width: 100%;
+  padding: 0 2px;
+}
+
+.dashboard-monthly-plan__category:focus {
+  color: var(--text-accent);
 }
 
 .dashboard-study-view {
@@ -1480,6 +1561,7 @@
   }
 
   .dashboard-monthly-panel__filters,
+  .dashboard-monthly-panel__category-filters,
   .dashboard-monthly-panel__nav {
     justify-content: flex-start;
   }

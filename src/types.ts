@@ -7,6 +7,8 @@ export type DashboardPanelId =
   | "study"
   | "database"
   | "projects";
+export type DashboardCategory = "生活" | "工作" | "公考" | "学习" | "其他";
+export type DashboardCategoryFilter = DashboardCategory | "all" | "uncategorized";
 export type DashboardPanelSize = "compact" | "normal" | "wide" | "tall" | "large";
 export type StudyTrackerMode = "month" | "year";
 export type DashboardTabId = "home" | "study" | "monthly";
@@ -27,6 +29,7 @@ export interface DashboardSettings {
   studyCheckins: StudyCheckin[];
   monthlyPlan: Record<string, string>;
   monthlyPlanDone: Record<string, boolean>;
+  monthlyPlanCategory: Record<string, DashboardCategory>;
 }
 
 export interface StudyCourse {
@@ -49,6 +52,7 @@ export interface DashboardTask {
   file: TFile;
   line: number;
   tags: string[];
+  category?: DashboardCategory;
   source?: "note" | "monthly-plan";
   monthlyPlanDate?: string;
 }
@@ -93,6 +97,9 @@ export interface DailyMonthSummary {
   mood: string;
   efficiency: string;
   review: string;
+  monthlyPlan: string;
+  monthlyPlanDone: boolean;
+  monthlyPlanCategory?: DashboardCategory;
 }
 
 export type MonthlyDiaryFilter = "all" | "todo" | "inspiration" | "notes";

@@ -40,6 +40,7 @@ import {
   applyTaskOrder,
   getTasksForDate,
   getTaskKey,
+  getTaskCategory,
   stripTaskMetadata,
 } from "./tasks";
 import {
@@ -51,6 +52,8 @@ import {
   STUDY_MODULES,
 } from "./study";
 import type {
+  DashboardCategory,
+  DashboardCategoryFilter,
   DashboardData,
   DailySection,
   DailyMonthSummary,
@@ -74,6 +77,20 @@ const MONTHLY_DIARY_FILTERS: Array<{ id: MonthlyDiaryFilter; label: string }> = 
   { id: "inspiration", label: "灵感" },
   { id: "notes", label: "笔记" },
 ];
+
+const DASHBOARD_CATEGORY_FILTERS: Array<{
+  id: DashboardCategoryFilter;
+  label: string;
+}> = [
+  { id: "all", label: "全部" },
+  { id: "生活", label: "生活" },
+  { id: "工作", label: "工作" },
+  { id: "公考", label: "公考" },
+  { id: "学习", label: "学习" },
+  { id: "其他", label: "其他" },
+  { id: "uncategorized", label: "未分类" },
+];
+const DASHBOARD_CATEGORIES: DashboardCategory[] = ["生活", "工作", "公考", "学习", "其他"];
 
 export default class DashboardPlugin extends Plugin {
   settings: DashboardSettings = DEFAULT_SETTINGS;
@@ -177,6 +194,9 @@ export default class DashboardPlugin extends Plugin {
     this.settings.studyCheckins = normalizeStudyCheckins(this.settings.studyCheckins);
     this.settings.monthlyPlan = normalizeMonthlyPlan(this.settings.monthlyPlan);
     this.settings.monthlyPlanDone = normalizeMonthlyPlanDone(this.settings.monthlyPlanDone);
+    this.settings.monthlyPlanCategory = normalizeMonthlyPlanCategory(
+      this.settings.monthlyPlanCategory,
+    );
   }
 
   async saveSettings() {
@@ -361,17 +381,17 @@ export default class DashboardPlugin extends Plugin {
       const cache = this.app.metadataCache.getFileCache(file);
       const frontmatter = cache?.frontmatter ?? {};
 
-      tasks.push(...extractTasks(content, file));
+      tasks.push(...categorizeTasks(extractTasks(content, file)));
 
       const dailyDate = this.getDateFromDailyFile(file);
       if (dailyDate) {
         dailyDates.add(dailyDate);
         const dailySectionsForFile = extractDailySections(content);
-        const dailyTodos = extractLooseTasksFromHeading(
+        const dailyTodos = categorizeTasks(extractLooseTasksFromHeading(
           content,
           file,
           this.settings.defaultTaskSection,
-        ).filter((task) => !task.done);
+        )).filter((task) => !task.done);
         tasks.push(...dailyTodos);
         dailyTodosByDate.set(dailyDate, dailyTodos);
 
@@ -414,6 +434,7 @@ export default class DashboardPlugin extends Plugin {
         file: sourceFile,
         line: -1,
         tags: [],
+        category: this.settings.monthlyPlanCategory[date],
         source: "monthly-plan",
         monthlyPlanDate: date,
       });
@@ -513,6 +534,20 @@ export default class DashboardPlugin extends Plugin {
     } else {
       delete this.settings.monthlyPlan[date];
       delete this.settings.monthlyPlanDone[date];
+      delete this.settings.monthlyPlanCategory[date];
+    }
+    await this.saveData(this.settings);
+  }
+
+  async saveMonthlyPlanCategory(date: string, category: DashboardCategory | "") {
+    if (!moment(date, "YYYY-MM-DD", true).isValid()) {
+      return;
+    }
+
+    if (category) {
+      this.settings.monthlyPlanCategory[date] = category;
+    } else {
+      delete this.settings.monthlyPlanCategory[date];
     }
     await this.saveData(this.settings);
   }
@@ -587,6 +622,9 @@ export default class DashboardPlugin extends Plugin {
           mood: "",
           efficiency: "",
           review: "",
+          monthlyPlan: this.settings.monthlyPlan[date] ?? "",
+          monthlyPlanDone: Boolean(this.settings.monthlyPlanDone[date]),
+          monthlyPlanCategory: this.settings.monthlyPlanCategory[date],
         });
         continue;
       }
@@ -598,7 +636,9 @@ export default class DashboardPlugin extends Plugin {
       summaries.push({
         date,
         file,
-        todos: extractLooseTasksFromHeading(content, file, this.settings.defaultTaskSection),
+        todos: categorizeTasks(
+          extractLooseTasksFromHeading(content, file, this.settings.defaultTaskSection),
+        ),
         inspiration: getDailyText(sections, ["今日灵感", "灵感", "想法/思考"]),
         relatedNotes: getDailyText(sections, ["今日关联笔记", "关联笔记"]),
         readingNotes: getDailyText(sections, ["读书笔记", "阅读笔记"]),
@@ -617,6 +657,9 @@ export default class DashboardPlugin extends Plugin {
           "评价",
           "自我评价",
         ], ["自我评价", "今日评价", "复盘"]),
+        monthlyPlan: this.settings.monthlyPlan[date] ?? "",
+        monthlyPlanDone: Boolean(this.settings.monthlyPlanDone[date]),
+        monthlyPlanCategory: this.settings.monthlyPlanCategory[date],
       });
     }
 
@@ -638,7 +681,9 @@ export default class DashboardPlugin extends Plugin {
     }
 
     const content = await this.app.vault.cachedRead(file);
-    return extractLooseTasksFromHeading(content, file, this.settings.defaultTaskSection);
+    return categorizeTasks(
+      extractLooseTasksFromHeading(content, file, this.settings.defaultTaskSection),
+    );
   }
 
   async getTodosForDate(date: string, allTasks: DashboardTask[]): Promise<DashboardTask[]> {
@@ -778,6 +823,7 @@ class DashboardView extends ItemView {
   private dashboardLeaf: WorkspaceLeaf;
   private activeTab: DashboardTabId = "home";
   private monthlyPlanMonth = moment().format("YYYY-MM");
+  private todoCategory: DashboardCategoryFilter = "all";
   private studyTrackerRenderer?: StudyTrackerView;
   private selectedCalendarDate = moment().format("YYYY-MM-DD");
   private draggedPanelId?: DashboardPanelId;
@@ -1125,17 +1171,40 @@ class DashboardView extends ItemView {
   }
 
   private renderTasks(root: HTMLElement, data: DashboardData) {
-    const card = createCard(root, "TodoList", "is-todo", "todo", this);
+    const card = createCard(root, "TodoList", "is-todo", "todo", this, (actions) => {
+      const filters = actions.createDiv({ cls: "dashboard-home__category-filter" });
+      for (const category of DASHBOARD_CATEGORY_FILTERS) {
+        const button = filters.createEl("button", {
+          cls: category.id === this.todoCategory ? "is-active" : "",
+          text: category.label,
+        });
+        button.addEventListener("click", (event) => {
+          event.stopPropagation();
+          this.todoCategory = category.id;
+          void this.render();
+        });
+      }
+    });
 
-    if (data.tasks.length === 0) {
+    const tasks = data.tasks.filter((task) => {
+      if (this.todoCategory === "all") {
+        return true;
+      }
+      if (this.todoCategory === "uncategorized") {
+        return !task.category;
+      }
+      return task.category === this.todoCategory;
+    });
+
+    if (tasks.length === 0) {
       card.createEl("p", {
         cls: "dashboard-home__muted",
-        text: "没有未完成 todo。",
+        text: this.todoCategory === "all" ? "没有未完成 todo。" : "当前分类暂无未完成 todo。",
       });
       return;
     }
 
-    for (const task of data.tasks) {
+    for (const task of tasks) {
       const taskKey = getTaskKey(task);
       const row = card.createDiv({ cls: "dashboard-home__task" });
       row.setAttr("draggable", "true");
@@ -1177,6 +1246,12 @@ class DashboardView extends ItemView {
 
       const body = row.createDiv({ cls: "dashboard-home__task-body" });
       body.createEl("span", { text: stripTaskMetadata(task.text) });
+      if (task.category) {
+        body.createEl("small", {
+          cls: "dashboard-home__task-category",
+          text: task.category,
+        });
+      }
       const meta = body.createEl("small", {
         text: task.source === "monthly-plan"
           ? `${task.due ?? ""} · 月度计划`
@@ -1297,6 +1372,21 @@ class DashboardView extends ItemView {
         ].filter(Boolean).join(" "),
       });
       cell.createEl("strong", { text: String(day).padStart(2, "0") });
+      const category = cell.createEl("select", {
+        cls: "dashboard-monthly-plan__category",
+        attr: { "aria-label": `${date} 分类` },
+      });
+      category.createEl("option", { text: "分类", attr: { value: "" } });
+      for (const item of DASHBOARD_CATEGORIES) {
+        category.createEl("option", { text: item, attr: { value: item } });
+      }
+      category.value = this.plugin.settings.monthlyPlanCategory[date] ?? "";
+      category.addEventListener("change", () => {
+        void this.plugin.saveMonthlyPlanCategory(
+          date,
+          category.value as DashboardCategory | "",
+        );
+      });
       const input = cell.createEl("textarea", {
         cls: "dashboard-monthly-plan__input",
         attr: { placeholder: "写计划…", rows: "3" },
@@ -1569,6 +1659,7 @@ class MonthlyDiaryView extends ItemView {
   private plugin: DashboardPlugin;
   private month = moment().format("YYYY-MM");
   private filter: MonthlyDiaryFilter = "all";
+  private category: DashboardCategoryFilter = "all";
 
   constructor(leaf: WorkspaceLeaf, plugin: DashboardPlugin) {
     super(leaf);
@@ -1637,6 +1728,20 @@ class MonthlyDiaryView extends ItemView {
       });
     }
 
+    const categoryFilters = actions.createDiv({
+      cls: "dashboard-monthly-panel__category-filters",
+    });
+    for (const category of DASHBOARD_CATEGORY_FILTERS) {
+      const button = categoryFilters.createEl("button", {
+        cls: category.id === this.category ? "is-active" : "",
+        text: category.label,
+      });
+      button.addEventListener("click", async () => {
+        this.category = category.id;
+        await this.render();
+      });
+    }
+
     const navigation = actions.createDiv({ cls: "dashboard-monthly-panel__nav" });
     const previous = navigation.createEl("button", { text: "上月" });
     previous.addEventListener("click", () => {
@@ -1679,9 +1784,14 @@ class MonthlyDiaryView extends ItemView {
     for (let day = 1; day <= month.daysInMonth(); day += 1) {
       const date = month.clone().date(day).format("YYYY-MM-DD");
       const summary = summaryByDate.get(date);
+      const visibleTodos = summary ? this.getVisibleTodos(summary) : [];
+      const visibleMonthlyPlan = Boolean(
+        summary?.monthlyPlan && this.matchesCategory(summary.monthlyPlanCategory),
+      );
       const hasContent = Boolean(
         summary?.file ||
-          summary?.todos.length ||
+          visibleTodos.length ||
+          visibleMonthlyPlan ||
           summary?.inspiration ||
           summary?.relatedNotes ||
           summary?.readingNotes ||
@@ -1752,18 +1862,26 @@ class MonthlyDiaryView extends ItemView {
     summary: DailyMonthSummary,
     compact: boolean,
   ) {
-    if (summary.todos.length === 0) {
+    const todos = this.getVisibleTodos(summary);
+    const hasMonthlyPlan = Boolean(
+      summary.monthlyPlan && this.matchesCategory(summary.monthlyPlanCategory),
+    );
+    if (todos.length === 0 && !hasMonthlyPlan) {
       return;
     }
 
-    const openTasks = summary.todos.filter((task) => !task.done);
+    const openTasks = todos.filter((task) => !task.done);
+    const totalCount = todos.length + (hasMonthlyPlan ? 1 : 0);
+    const openCount = openTasks.length + (
+      hasMonthlyPlan && !summary.monthlyPlanDone ? 1 : 0
+    );
     const block = root.createDiv({ cls: "dashboard-monthly-panel__block" });
     block.createEl("span", {
       cls: "dashboard-monthly-panel__block-label",
-      text: compact ? `Todo ${openTasks.length}/${summary.todos.length}` : "Todo",
+      text: compact ? `Todo ${openCount}/${totalCount}` : "Todo",
     });
 
-    const visibleItems = summary.todos
+    const visibleItems = todos
       .map((task) => ({
         done: task.done,
         text: stripTaskMetadata(task.text),
@@ -1773,6 +1891,29 @@ class MonthlyDiaryView extends ItemView {
     for (const item of visibleItems) {
       renderMonthlyTodoLine(block, item.text, item.done, compact);
     }
+
+    if (hasMonthlyPlan && (!compact || visibleItems.length === 0)) {
+      renderMonthlyTodoLine(
+        block,
+        summary.monthlyPlan,
+        summary.monthlyPlanDone,
+        compact,
+      );
+    }
+  }
+
+  private getVisibleTodos(summary: DailyMonthSummary): DashboardTask[] {
+    return summary.todos.filter((task) => this.matchesCategory(task.category));
+  }
+
+  private matchesCategory(category: DashboardCategory | undefined): boolean {
+    if (this.category === "all") {
+      return true;
+    }
+    if (this.category === "uncategorized") {
+      return !category;
+    }
+    return category === this.category;
   }
 }
 
@@ -2322,6 +2463,27 @@ function normalizeMonthlyPlanDone(value: unknown): Record<string, boolean> {
   return normalized;
 }
 
+function normalizeMonthlyPlanCategory(
+  value: unknown,
+): Record<string, DashboardCategory> {
+  if (!value || typeof value !== "object") {
+    return {};
+  }
+
+  const categories = new Set<DashboardCategory>(["生活", "工作", "公考", "学习", "其他"]);
+  const normalized: Record<string, DashboardCategory> = {};
+  for (const [date, category] of Object.entries(value)) {
+    if (
+      moment(date, "YYYY-MM-DD", true).isValid() &&
+      typeof category === "string" &&
+      categories.has(category as DashboardCategory)
+    ) {
+      normalized[date] = category as DashboardCategory;
+    }
+  }
+  return normalized;
+}
+
 function getSizeFromDrag(
   currentSize: DashboardPanelSize,
   deltaX: number,
@@ -2359,6 +2521,13 @@ function applyPanelSizeClass(card: HTMLElement, size: DashboardPanelSize) {
 
 function getPanelSizeClass(size: DashboardPanelSize): string {
   return `dashboard-home__card--size-${size}`;
+}
+
+function categorizeTasks(tasks: DashboardTask[]): DashboardTask[] {
+  return tasks.map((task) => ({
+    ...task,
+    category: getTaskCategory(task.tags),
+  }));
 }
 
 function getDailyText(sections: DailySection[], headings: string[]): string {
