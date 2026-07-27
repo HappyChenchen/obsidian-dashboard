@@ -2396,9 +2396,9 @@ function extractNoteTags(
   const inlineTags = Array.from(
     content.matchAll(/#[\p{Letter}\p{Number}/_-]+/gu),
   ).map((match) => match[0]);
-  const normalized = ["daily", ...frontmatterTags, ...metadataTags, ...inlineTags]
+  const normalized = [...frontmatterTags, ...metadataTags, ...inlineTags]
     .map((tag) => tag.trim().replace(/^#/, "").toLowerCase())
-    .filter(Boolean);
+    .filter((tag) => Boolean(tag) && tag !== "daily");
 
   return Array.from(new Set(normalized)).slice(0, 5);
 }
