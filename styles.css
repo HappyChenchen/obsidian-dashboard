@@ -709,11 +709,6 @@
   font-size: 11px;
 }
 
-.dashboard-home__thought-tags .is-marker {
-  color: var(--dashboard-text-muted);
-  font-weight: 600;
-}
-
 .dashboard-home__thought-item p {
   color: var(--text-muted);
   font-size: 13px;
