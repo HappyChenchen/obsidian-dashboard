@@ -868,8 +868,8 @@ class DashboardView extends ItemView {
     const tabs = root.createDiv({ cls: "dashboard-home__tabs" });
     const tabItems: Array<{ id: DashboardTabId; label: string }> = [
       { id: "home", label: "首页" },
-      { id: "study", label: "公考计划" },
       { id: "monthly", label: "月度计划" },
+      { id: "study", label: "公考计划" },
     ];
 
     for (const tab of tabItems) {
