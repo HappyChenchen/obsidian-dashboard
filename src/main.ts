@@ -36,7 +36,9 @@ import {
   dedupeTasksByText,
   extractLooseTasksFromHeading,
   extractTasks,
+  applyTaskOrder,
   getTasksForDate,
+  getTaskKey,
   stripTaskMetadata,
 } from "./tasks";
 import {
@@ -168,6 +170,7 @@ export default class DashboardPlugin extends Plugin {
   async loadSettings() {
     this.settings = { ...DEFAULT_SETTINGS, ...(await this.loadData()) };
     this.settings.panelOrder = normalizePanelOrder(this.settings.panelOrder);
+    this.settings.taskOrder = normalizeTaskOrder(this.settings.taskOrder);
     this.settings.panelSizes = normalizePanelSizes(this.settings.panelSizes);
     this.settings.visiblePanels = normalizePanelVisibility(this.settings.visiblePanels);
     this.settings.studyCheckins = normalizeStudyCheckins(this.settings.studyCheckins);
@@ -190,6 +193,20 @@ export default class DashboardPlugin extends Plugin {
     const targetIndex = order.indexOf(targetPanelId);
     order.splice(targetIndex === -1 ? order.length : targetIndex, 0, draggedPanelId);
     this.settings.panelOrder = order;
+    await this.saveSettings();
+  }
+
+  async moveTaskOrder(draggedTaskKey: string, targetTaskKey: string) {
+    if (draggedTaskKey === targetTaskKey) {
+      return;
+    }
+
+    const order = normalizeTaskOrder(this.settings.taskOrder).filter(
+      (key) => key !== draggedTaskKey,
+    );
+    const targetIndex = order.indexOf(targetTaskKey);
+    order.splice(targetIndex === -1 ? order.length : targetIndex, 0, draggedTaskKey);
+    this.settings.taskOrder = order;
     await this.saveSettings();
   }
 
@@ -386,6 +403,7 @@ export default class DashboardPlugin extends Plugin {
 
     const allOpenTasks = dedupeTasksByText(tasks.filter((task) => !task.done))
       .sort(compareTasksForDashboard);
+    const orderedTasks = applyTaskOrder(allOpenTasks, this.settings.taskOrder);
 
     const calendarCounts = new Map<string, number>();
     const calendarDates = new Set<string>();
@@ -412,7 +430,7 @@ export default class DashboardPlugin extends Plugin {
       today,
       todayFile,
       dailySections,
-      tasks: allOpenTasks.slice(0, 30),
+      tasks: orderedTasks.slice(0, 30),
       allTasks: allOpenTasks,
       dailyDates,
       calendarCounts,
@@ -1075,7 +1093,36 @@ class DashboardView extends ItemView {
     }
 
     for (const task of data.tasks) {
+      const taskKey = getTaskKey(task);
       const row = card.createDiv({ cls: "dashboard-home__task" });
+      row.setAttr("draggable", "true");
+      row.setAttr("data-task-key", taskKey);
+      row.addEventListener("dragstart", (event) => {
+        event.dataTransfer?.setData("text/plain", taskKey);
+        if (event.dataTransfer) event.dataTransfer.effectAllowed = "move";
+        row.addClass("is-dragging");
+      });
+      row.addEventListener("dragover", (event) => {
+        event.preventDefault();
+        if (event.dataTransfer) event.dataTransfer.dropEffect = "move";
+        row.addClass("is-drop-target");
+      });
+      row.addEventListener("dragleave", () => {
+        row.removeClass("is-drop-target");
+      });
+      row.addEventListener("drop", async (event) => {
+        event.preventDefault();
+        row.removeClass("is-drop-target");
+        const draggedTaskKey = event.dataTransfer?.getData("text/plain");
+        if (!draggedTaskKey || draggedTaskKey === taskKey) return;
+        await this.plugin.moveTaskOrder(draggedTaskKey, taskKey);
+      });
+      row.addEventListener("dragend", () => {
+        row.removeClass("is-dragging");
+        card.querySelectorAll(".is-drop-target").forEach((element) => {
+          element.removeClass("is-drop-target");
+        });
+      });
       const checkbox = row.createEl("input", {
         attr: { type: "checkbox" },
       });
@@ -2167,6 +2214,16 @@ function normalizePanelOrder(panelOrder: unknown): DashboardPanelId[] {
   }
 
   return normalized;
+}
+
+function normalizeTaskOrder(taskOrder: unknown): string[] {
+  if (!Array.isArray(taskOrder)) {
+    return [];
+  }
+
+  return taskOrder.filter(
+    (key): key is string => typeof key === "string" && key.length > 0,
+  );
 }
 
 function normalizePanelSizes(

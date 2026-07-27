@@ -22,6 +22,7 @@ export interface DashboardSettings {
   pomodoroMinutes: number;
   openOnStartup: boolean;
   panelOrder: DashboardPanelId[];
+  taskOrder: string[];
   panelSizes: Record<DashboardPanelId, DashboardPanelSize>;
   visiblePanels: Record<DashboardPanelId, boolean>;
   studyCheckins: StudyCheckin[];

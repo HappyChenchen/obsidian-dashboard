@@ -722,11 +722,25 @@
   display: flex;
   gap: 8px;
   padding: 7px 0;
-  transition: background 120ms ease;
+  cursor: grab;
+  transition: background 120ms ease, opacity 120ms ease;
 }
 
 .dashboard-home__task:hover {
   background: color-mix(in srgb, var(--dashboard-surface-alt), transparent 35%);
+}
+
+.dashboard-home__task:active {
+  cursor: grabbing;
+}
+
+.dashboard-home__task.is-dragging {
+  opacity: 0.45;
+}
+
+.dashboard-home__task.is-drop-target {
+  background: color-mix(in srgb, var(--dashboard-accent), transparent 88%);
+  box-shadow: inset 0 2px 0 var(--dashboard-accent);
 }
 
 .dashboard-home__task input {

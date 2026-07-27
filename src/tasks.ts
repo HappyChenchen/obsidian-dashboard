@@ -144,6 +144,29 @@ export function dedupeTasksByText(tasks: DashboardTask[]): DashboardTask[] {
   return Array.from(tasksByText.values());
 }
 
+export function getTaskKey(task: DashboardTask): string {
+  return `${task.file.path}:${task.line}:${task.text}`;
+}
+
+export function applyTaskOrder(
+  tasks: DashboardTask[],
+  taskOrder: string[],
+): DashboardTask[] {
+  const order = new Map(taskOrder.map((key, index) => [key, index]));
+
+  return tasks.slice().sort((a, b) => {
+    const aIndex = order.get(getTaskKey(a));
+    const bIndex = order.get(getTaskKey(b));
+
+    if (aIndex !== undefined && bIndex !== undefined) {
+      return aIndex - bIndex;
+    }
+    if (aIndex !== undefined) return -1;
+    if (bIndex !== undefined) return 1;
+    return compareTasksForDashboard(a, b);
+  });
+}
+
 export function stripTaskMetadata(text: string): string {
   return text
     .replace(/(?:due|scheduled|start|date)::\s*\d{4}-\d{2}-\d{2}/gi, "")

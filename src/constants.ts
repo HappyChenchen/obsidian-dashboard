@@ -51,6 +51,7 @@ export const DEFAULT_SETTINGS: DashboardSettings = {
   pomodoroMinutes: 25,
   openOnStartup: false,
   panelOrder: DEFAULT_PANEL_ORDER,
+  taskOrder: [],
   panelSizes: DEFAULT_PANEL_SIZES,
   visiblePanels: DEFAULT_VISIBLE_PANELS,
   studyCheckins: [],
