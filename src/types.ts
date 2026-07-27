@@ -75,7 +75,7 @@ export interface LibraryItem {
 
 export interface RecentThought {
   date: string;
-  text: string;
+  previewSections: Array<{ label: string; text: string }>;
   file: TFile;
   updated: number;
   tags: string[];

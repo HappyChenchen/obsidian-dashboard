@@ -376,7 +376,10 @@ export default class DashboardPlugin extends Plugin {
         if (dailyDate <= today) {
           recentThoughts.push({
             date: dailyDate,
-            text: getRecentDailyPreview(content, dailySectionsForFile),
+            previewSections: getRecentDailyPreviewSections(
+              content,
+              dailySectionsForFile,
+            ),
             file,
             updated: file.stat.mtime,
             tags: extractNoteTags(
@@ -1070,9 +1073,34 @@ class DashboardView extends ItemView {
       for (const tag of thought.tags) {
         tags.createEl("span", { text: `#${tag}` });
       }
-      item.createEl("p", {
-        text: thought.text || "暂无记录",
-      });
+      const preview = item.createDiv({ cls: "dashboard-home__thought-preview" });
+      if (thought.previewSections.length === 0) {
+        preview.createEl("span", {
+          cls: "dashboard-home__thought-preview-empty",
+          text: "暂无记录",
+        });
+      } else {
+        for (const section of thought.previewSections) {
+          const row = preview.createDiv({
+            cls: [
+              "dashboard-home__thought-preview-row",
+              section.label ? "" : "is-unlabeled",
+            ]
+              .filter(Boolean)
+              .join(" "),
+          });
+          if (section.label) {
+            row.createEl("span", {
+              cls: "dashboard-home__thought-preview-label",
+              text: section.label,
+            });
+          }
+          row.createEl("span", {
+            cls: "dashboard-home__thought-preview-text",
+            text: section.text,
+          });
+        }
+      }
     }
   }
 
@@ -2292,35 +2320,39 @@ function getDailyText(sections: DailySection[], headings: string[]): string {
   );
 }
 
-function getRecentDailyPreview(
+function getRecentDailyPreviewSections(
   content: string,
   sections: DailySection[],
-): string {
-  const sectionBody = sections
-    .map((section) => {
-      const text = getSectionText(section);
-      if (!text) {
-        return "";
-      }
+): Array<{ label: string; text: string }> {
+  const previews: Array<{ label: string; text: string }> = [];
+  let remaining = 150;
 
-      const normalizedHeading = section.heading.trim().toLowerCase();
-      if (normalizedHeading.includes("todo")) {
-        return `todo：${text}`;
-      }
-      if (["今日灵感", "灵感", "想法/思考"].includes(section.heading.trim())) {
-        return `想法：${text}`;
-      }
-      return text;
-    })
-    .filter(Boolean)
-    .join(" ")
-  const body = sectionBody || extractRawDailyPreview(content);
+  for (const section of sections) {
+    const text = getSectionText(section).replace(/\s+/g, " ").trim();
+    if (!text || remaining <= 0) {
+      continue;
+    }
 
-  if (body) {
-    return truncateText(body, 150);
+    const heading = section.heading.trim();
+    const normalizedHeading = heading.toLowerCase();
+    const label = normalizedHeading.includes("todo")
+      ? "TODO"
+      : ["今日灵感", "灵感", "想法/思考"].includes(heading)
+        ? "想法"
+        : heading === "今日关联笔记"
+          ? "关联"
+          : "";
+    const snippet = truncateText(text, remaining);
+    previews.push({ label, text: snippet });
+    remaining -= snippet.length + 2;
   }
 
-  return "";
+  if (previews.length > 0) {
+    return previews;
+  }
+
+  const fallback = extractRawDailyPreview(content);
+  return fallback ? [{ label: "", text: truncateText(fallback, 150) }] : [];
 }
 
 function extractRawDailyPreview(content: string): string {
