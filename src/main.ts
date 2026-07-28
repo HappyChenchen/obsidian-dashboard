@@ -1872,9 +1872,12 @@ class MonthlyDiaryView extends ItemView {
 
       const addTodo = cell.createEl("button", {
         cls: "dashboard-monthly-panel__add-todo",
-        text: "+ Todo",
-        attr: { "aria-label": `${date} 新增 Todo` },
+        attr: {
+          "aria-label": `${date} 新增 Todo`,
+          title: "新增 Todo",
+        },
       });
+      setIcon(addTodo, "plus");
       addTodo.addEventListener("click", (event) => {
         event.preventDefault();
         event.stopPropagation();
@@ -2002,10 +2005,15 @@ class AddMonthlyTodoModal extends Modal {
     contentEl.addClass("dashboard-add-todo-modal");
     contentEl.createEl("h2", { text: `${this.date} 新增 Todo` });
 
+    const categoryField = contentEl.createDiv({
+      cls: "dashboard-add-todo-modal__field",
+    });
+    categoryField.createEl("label", { text: "分类" });
     const category = contentEl.createEl("select", {
       cls: "dashboard-add-todo-modal__category",
       attr: { "aria-label": "Todo 分类" },
     });
+    categoryField.appendChild(category);
     category.createEl("option", {
       text: "先选择分类",
       attr: { value: "" },
@@ -2017,6 +2025,10 @@ class AddMonthlyTodoModal extends Modal {
       });
     }
 
+    const inputField = contentEl.createDiv({
+      cls: "dashboard-add-todo-modal__field",
+    });
+    inputField.createEl("label", { text: "内容" });
     const input = contentEl.createEl("input", {
       cls: "dashboard-add-todo-modal__input",
       attr: {
@@ -2025,6 +2037,7 @@ class AddMonthlyTodoModal extends Modal {
         disabled: "true",
       },
     });
+    inputField.appendChild(input);
 
     const actions = contentEl.createDiv({ cls: "modal-button-container" });
     const cancel = actions.createEl("button", { text: "取消" });

@@ -536,10 +536,24 @@
   box-shadow: none;
   color: var(--text-accent);
   cursor: pointer;
-  font-size: 10px;
+  display: inline-flex;
+  height: 22px;
+  justify-content: center;
   margin-top: auto;
-  min-height: 22px;
-  padding: 0 5px;
+  opacity: 0.28;
+  padding: 0;
+  width: 22px;
+}
+
+.dashboard-monthly-panel__add-todo svg {
+  height: 14px;
+  width: 14px;
+}
+
+.dashboard-monthly-panel__day:hover .dashboard-monthly-panel__add-todo,
+.dashboard-monthly-panel__add-todo:focus-visible {
+  background: color-mix(in srgb, var(--interactive-accent), transparent 86%);
+  opacity: 1;
 }
 
 .dashboard-monthly-panel__add-todo:hover {
@@ -1205,8 +1219,23 @@
 .dashboard-add-todo-modal__category,
 .dashboard-add-todo-modal__input {
   box-sizing: border-box;
-  margin-top: 8px;
   width: 100%;
+}
+
+.dashboard-add-todo-modal h2 {
+  margin-bottom: 18px;
+}
+
+.dashboard-add-todo-modal__field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-top: 12px;
+}
+
+.dashboard-add-todo-modal__field label {
+  color: var(--text-muted);
+  font-size: 12px;
 }
 
 .dashboard-add-todo-modal__category {
