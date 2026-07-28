@@ -211,7 +211,7 @@ export function extractLooseTasksFromHeading(
     }
 
     const line = lines[index].trim();
-    if (!line) {
+    if (!line || /^<!--.*-->$/.test(line)) {
       continue;
     }
 

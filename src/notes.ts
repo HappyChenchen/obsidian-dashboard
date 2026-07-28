@@ -36,7 +36,7 @@ export function getSectionText(section: DailySection | undefined): string {
 
   return section.lines
     .map((line) => line.trim())
-    .filter(Boolean)
+    .filter((line) => Boolean(line) && !/^<!--.*-->$/.test(line))
     .join("\n");
 }
 

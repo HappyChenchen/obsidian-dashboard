@@ -1,6 +1,7 @@
 import {
   App,
   ItemView,
+  Modal,
   Notice,
   Plugin,
   PluginSettingTab,
@@ -12,6 +13,7 @@ import {
 } from "obsidian";
 import {
   DAILY_TEMPLATE_SECTIONS,
+  DAILY_TEMPLATE_HINTS,
   DEFAULT_PANEL_ORDER,
   DEFAULT_PANEL_SIZES,
   DEFAULT_VISIBLE_PANELS,
@@ -736,7 +738,11 @@ export default class DashboardPlugin extends Plugin {
       "",
       `# ${isoDate}`,
       "",
-      ...DAILY_TEMPLATE_SECTIONS.flatMap((heading) => [`## ${heading}`, ""]),
+      ...DAILY_TEMPLATE_SECTIONS.flatMap((heading) => [
+        `## ${heading}`,
+        DAILY_TEMPLATE_HINTS[heading] ?? "",
+        "",
+      ]),
     ].join("\n");
 
     return this.app.vault.create(path, content);
@@ -757,6 +763,31 @@ export default class DashboardPlugin extends Plugin {
     );
     await this.app.vault.modify(file, nextContent);
     new Notice("已记录到今天的 Todo。");
+  }
+
+  async appendTaskToDate(
+    date: string,
+    text: string,
+    category: DashboardCategory,
+  ) {
+    if (!moment(date, "YYYY-MM-DD", true).isValid()) {
+      return;
+    }
+
+    const cleanText = text.trim().replace(/\s+/g, " ");
+    if (!cleanText || !category) {
+      return;
+    }
+
+    const file = await this.ensureDailyNote(date);
+    const content = await this.app.vault.cachedRead(file);
+    const nextContent = appendLineUnderHeading(
+      content,
+      this.settings.defaultTaskSection,
+      `- [ ] ${cleanText} #${category}`,
+    );
+    await this.app.vault.modify(file, nextContent);
+    new Notice(`${date} Todo 已添加。`);
   }
 
   async appendPomodoroLog(minutes: number) {
@@ -786,7 +817,11 @@ export default class DashboardPlugin extends Plugin {
     const suffix = content.endsWith("\n") ? "" : "\n";
     const nextContent = [
       `${content}${suffix}`,
-      ...missingHeadings.flatMap((heading) => [`## ${heading}`, ""]),
+      ...missingHeadings.flatMap((heading) => [
+        `## ${heading}`,
+        DAILY_TEMPLATE_HINTS[heading] ?? "",
+        "",
+      ]),
     ].join("\n");
 
     await this.app.vault.modify(file, nextContent);
@@ -1834,6 +1869,19 @@ class MonthlyDiaryView extends ItemView {
       }
 
       this.renderDayContent(cell, summary);
+
+      const addTodo = cell.createEl("button", {
+        cls: "dashboard-monthly-panel__add-todo",
+        text: "+ Todo",
+        attr: { "aria-label": `${date} 新增 Todo` },
+      });
+      addTodo.addEventListener("click", (event) => {
+        event.preventDefault();
+        event.stopPropagation();
+        new AddMonthlyTodoModal(this.plugin.app, this.plugin, date, async () => {
+          await this.render();
+        }).open();
+      });
     }
   }
 
@@ -1928,6 +1976,96 @@ class MonthlyDiaryView extends ItemView {
       return !category;
     }
     return category === this.category;
+  }
+}
+
+class AddMonthlyTodoModal extends Modal {
+  private plugin: DashboardPlugin;
+  private date: string;
+  private onSaved: () => Promise<void>;
+
+  constructor(
+    app: App,
+    plugin: DashboardPlugin,
+    date: string,
+    onSaved: () => Promise<void>,
+  ) {
+    super(app);
+    this.plugin = plugin;
+    this.date = date;
+    this.onSaved = onSaved;
+  }
+
+  onOpen() {
+    const { contentEl } = this;
+    contentEl.empty();
+    contentEl.addClass("dashboard-add-todo-modal");
+    contentEl.createEl("h2", { text: `${this.date} 新增 Todo` });
+
+    const category = contentEl.createEl("select", {
+      cls: "dashboard-add-todo-modal__category",
+      attr: { "aria-label": "Todo 分类" },
+    });
+    category.createEl("option", {
+      text: "先选择分类",
+      attr: { value: "" },
+    });
+    for (const item of DASHBOARD_CATEGORIES) {
+      category.createEl("option", {
+        text: item,
+        attr: { value: item },
+      });
+    }
+
+    const input = contentEl.createEl("input", {
+      cls: "dashboard-add-todo-modal__input",
+      attr: {
+        type: "text",
+        placeholder: "填写 Todo 内容",
+        disabled: "true",
+      },
+    });
+
+    const actions = contentEl.createDiv({ cls: "modal-button-container" });
+    const cancel = actions.createEl("button", { text: "取消" });
+    cancel.addEventListener("click", () => this.close());
+    const submit = actions.createEl("button", {
+      cls: "mod-cta",
+      text: "添加",
+    });
+    submit.disabled = true;
+
+    const updateState = () => {
+      input.disabled = !category.value;
+      submit.disabled = !category.value || !input.value.trim();
+    };
+    category.addEventListener("change", () => {
+      updateState();
+      if (category.value) {
+        input.focus();
+      }
+    });
+    input.addEventListener("input", updateState);
+    input.addEventListener("keydown", (event) => {
+      if (event.key === "Enter" && !submit.disabled) {
+        event.preventDefault();
+        void submitTodo();
+      }
+    });
+
+    const submitTodo = async () => {
+      if (!category.value || !input.value.trim()) {
+        return;
+      }
+      await this.plugin.appendTaskToDate(
+        this.date,
+        input.value,
+        category.value as DashboardCategory,
+      );
+      await this.onSaved();
+      this.close();
+    };
+    submit.addEventListener("click", () => void submitTodo());
   }
 }
 

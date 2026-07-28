@@ -10,6 +10,10 @@ export const DAILY_TEMPLATE_SECTIONS = [
   "想法/思考",
 ];
 
+export const DAILY_TEMPLATE_HINTS: Record<string, string> = {
+  今日todo: "<!-- 分类：在每条 Todo 末尾添加 #生活、#工作、#公考、#学习 或 #其他 -->",
+};
+
 export const DEFAULT_PANEL_ORDER: DashboardPanelId[] = [
   "calendar",
   "daily",

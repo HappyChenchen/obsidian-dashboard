@@ -528,6 +528,24 @@
   white-space: nowrap;
 }
 
+.dashboard-monthly-panel__add-todo {
+  align-self: flex-start;
+  background: transparent;
+  border: 0;
+  border-radius: 5px;
+  box-shadow: none;
+  color: var(--text-accent);
+  cursor: pointer;
+  font-size: 10px;
+  margin-top: auto;
+  min-height: 22px;
+  padding: 0 5px;
+}
+
+.dashboard-monthly-panel__add-todo:hover {
+  background: color-mix(in srgb, var(--interactive-accent), transparent 86%);
+}
+
 .dashboard-monthly-panel__block {
   display: flex;
   flex-direction: column;
@@ -1182,6 +1200,21 @@
 
 .dashboard-monthly-plan__category:focus {
   color: var(--text-accent);
+}
+
+.dashboard-add-todo-modal__category,
+.dashboard-add-todo-modal__input {
+  box-sizing: border-box;
+  margin-top: 8px;
+  width: 100%;
+}
+
+.dashboard-add-todo-modal__category {
+  min-height: 34px;
+}
+
+.dashboard-add-todo-modal__input {
+  min-height: 34px;
 }
 
 .dashboard-study-view {
