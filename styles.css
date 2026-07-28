@@ -529,20 +529,24 @@
 }
 
 .dashboard-monthly-panel__add-todo {
-  align-self: flex-start;
+  align-self: flex-end;
   background: transparent;
-  border: 0;
+  border: 1px solid color-mix(in srgb, var(--interactive-accent), transparent 72%);
   border-radius: 5px;
+  box-sizing: border-box;
   box-shadow: none;
   color: var(--text-accent);
   cursor: pointer;
   display: inline-flex;
+  flex: 0 0 24px;
   height: 22px;
   justify-content: center;
   margin-top: auto;
-  opacity: 0.28;
+  min-height: 22px;
+  min-width: 24px;
+  opacity: 0.78;
   padding: 0;
-  width: 22px;
+  width: 24px;
 }
 
 .dashboard-monthly-panel__add-todo svg {
@@ -558,6 +562,15 @@
 
 .dashboard-monthly-panel__add-todo:hover {
   background: color-mix(in srgb, var(--interactive-accent), transparent 86%);
+}
+
+.dashboard-monthly-panel .dashboard-monthly-panel__add-todo {
+  box-sizing: border-box;
+  height: 22px;
+  min-height: 22px;
+  min-width: 24px;
+  padding: 0;
+  width: 24px;
 }
 
 .dashboard-monthly-panel__block {
