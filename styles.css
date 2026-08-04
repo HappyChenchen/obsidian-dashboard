@@ -910,6 +910,49 @@
   grid-template-columns: repeat(7, minmax(0, 1fr));
 }
 
+.dashboard-home__calendar-navigation {
+  align-items: center;
+  display: inline-flex;
+  gap: 2px;
+}
+
+.dashboard-home__calendar-month {
+  color: var(--dashboard-text-muted);
+  font-size: 11px;
+  min-width: 62px;
+  text-align: center;
+}
+
+.dashboard-home__card-header-actions .dashboard-home__calendar-nav-button,
+.dashboard-home__card-header-actions .dashboard-home__calendar-current {
+  align-items: center;
+  background: transparent;
+  border: 0;
+  border-radius: 5px;
+  box-shadow: none;
+  color: var(--dashboard-text-muted);
+  display: inline-flex;
+  justify-content: center;
+  min-height: 24px;
+  padding: 0 5px;
+}
+
+.dashboard-home__card-header-actions .dashboard-home__calendar-nav-button {
+  padding: 0;
+  width: 24px;
+}
+
+.dashboard-home__calendar-nav-button svg {
+  height: 14px;
+  width: 14px;
+}
+
+.dashboard-home__calendar-nav-button:hover,
+.dashboard-home__calendar-current:hover {
+  background: var(--background-modifier-hover);
+  color: var(--text-normal);
+}
+
 .dashboard-home__calendar-weekday {
   color: var(--dashboard-text-muted);
   font-size: 11px;

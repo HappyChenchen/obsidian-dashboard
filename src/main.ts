@@ -879,6 +879,7 @@ class DashboardView extends ItemView {
   private pomodoroRunning = false;
   private pomodoroTimer?: number;
   private calendarClickTimer?: number;
+  private calendarMonth = moment().format("YYYY-MM");
 
   constructor(leaf: WorkspaceLeaf, plugin: DashboardPlugin) {
     super(leaf);
@@ -1457,7 +1458,61 @@ class DashboardView extends ItemView {
   }
 
   private async renderCalendar(root: HTMLElement, data: DashboardData) {
+    const month = getSafeMonth(this.calendarMonth);
     const card = createCard(root, "日历", "is-calendar", "calendar", this, (actions) => {
+      const navigation = actions.createDiv({
+        cls: "dashboard-home__calendar-navigation",
+      });
+      const previous = navigation.createEl("button", {
+        cls: "dashboard-home__calendar-nav-button",
+        attr: {
+          "aria-label": "上月",
+          title: "上月",
+        },
+      });
+      setIcon(previous, "chevron-left");
+      previous.addEventListener("click", (event) => {
+        event.stopPropagation();
+        this.calendarMonth = month.clone().subtract(1, "month").format("YYYY-MM");
+        this.selectedCalendarDate = getSafeMonth(this.calendarMonth)
+          .startOf("month")
+          .format("YYYY-MM-DD");
+        void this.render();
+      });
+
+      navigation.createEl("span", {
+        cls: "dashboard-home__calendar-month",
+        text: month.format("YYYY年M月"),
+      });
+
+      const next = navigation.createEl("button", {
+        cls: "dashboard-home__calendar-nav-button",
+        attr: {
+          "aria-label": "下月",
+          title: "下月",
+        },
+      });
+      setIcon(next, "chevron-right");
+      next.addEventListener("click", (event) => {
+        event.stopPropagation();
+        this.calendarMonth = month.clone().add(1, "month").format("YYYY-MM");
+        this.selectedCalendarDate = getSafeMonth(this.calendarMonth)
+          .startOf("month")
+          .format("YYYY-MM-DD");
+        void this.render();
+      });
+
+      const current = actions.createEl("button", {
+        cls: "dashboard-home__calendar-current",
+        text: "本月",
+      });
+      current.addEventListener("click", (event) => {
+        event.stopPropagation();
+        this.calendarMonth = moment().format("YYYY-MM");
+        this.selectedCalendarDate = moment().format("YYYY-MM-DD");
+        void this.render();
+      });
+
       const monthly = actions.createEl("button", {
         cls: "dashboard-home__link-button",
         text: "月度日记",
@@ -1468,7 +1523,6 @@ class DashboardView extends ItemView {
         await this.plugin.activateMonthlyDiaryView();
       });
     });
-    const month = moment();
     const firstDay = month.clone().startOf("month");
     const start = firstDay.clone().subtract(firstDay.day(), "days");
     const today = moment().format("YYYY-MM-DD");
@@ -1484,7 +1538,9 @@ class DashboardView extends ItemView {
       const cell = calendar.createDiv({
         cls: [
           "dashboard-home__calendar-day",
-          day.month() === month.month() ? "" : "is-muted",
+          day.month() === month.month() && day.year() === month.year()
+            ? ""
+            : "is-muted",
           iso === today ? "is-today" : "",
           iso === this.selectedCalendarDate ? "is-selected" : "",
           data.dailyDates.has(iso) ? "has-daily" : "",
