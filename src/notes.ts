@@ -1,11 +1,11 @@
+import { getMarkdownLines } from "./markdown";
 import { App, TFile, moment } from "obsidian";
-import type { DailySection, LibraryItem, ProjectSummary } from "./types";
-import { extractTasks } from "./tasks";
+import type { DailySection, LibraryItem } from "./types";
 
 export function extractDailySections(content: string): DailySection[] {
-  const lines = content.split("\n");
+  const lines = getMarkdownLines(content);
   const sections: DailySection[] = [];
-  let current: { heading: string; lines: string[] } | undefined;
+  let current: { heading: string; lines: string[]; } | undefined;
 
   for (const line of lines) {
     const heading = /^##\s+(.+)$/.exec(line);
@@ -38,37 +38,6 @@ export function getSectionText(section: DailySection | undefined): string {
     .map((line) => line.trim())
     .filter((line) => Boolean(line) && !/^<!--.*-->$/.test(line))
     .join("\n");
-}
-
-export function isProjectFile(
-  file: TFile,
-  frontmatter: Record<string, unknown>,
-  folder: string,
-): boolean {
-  if (isReadmeFile(file)) {
-    return false;
-  }
-
-  const type = String(frontmatter.type ?? "").toLowerCase();
-  return isInFolder(file, folder) || type === "project";
-}
-
-export function buildProjectSummary(
-  file: TFile,
-  content: string,
-  frontmatter: Record<string, unknown>,
-): ProjectSummary {
-  const tasks = extractTasks(content, file);
-  const total = tasks.length;
-  const done = tasks.filter((task) => task.done).length;
-
-  return {
-    title: String(frontmatter.title ?? file.basename),
-    file,
-    status: String(frontmatter.status ?? "active"),
-    progress: total === 0 ? 0 : Math.round((done / total) * 100),
-    updated: file.stat.mtime,
-  };
 }
 
 export function isLibraryFile(
@@ -153,7 +122,8 @@ export function appendLineUnderHeading(
 ): string {
   const lines = content.split("\n");
   const headingPattern = new RegExp(`^##\\s+${escapeRegExp(heading)}\\s*$`, "i");
-  const headingIndex = lines.findIndex((line) => headingPattern.test(line));
+  const visible = getMarkdownLines(content);
+  const headingIndex = visible.findIndex((line) => headingPattern.test(line));
 
   if (headingIndex === -1) {
     const suffix = content.endsWith("\n") ? "" : "\n";
@@ -161,7 +131,7 @@ export function appendLineUnderHeading(
   }
 
   let insertIndex = headingIndex + 1;
-  while (insertIndex < lines.length && !/^##\s+/.test(lines[insertIndex])) {
+  while (insertIndex < lines.length && !/^#{1,2}\s+/.test(visible[insertIndex])) {
     insertIndex += 1;
   }
 
@@ -169,17 +139,7 @@ export function appendLineUnderHeading(
   return lines.join("\n");
 }
 
-export function formatDuration(seconds: number): string {
-  const safeSeconds = Math.max(0, seconds);
-  const minutes = Math.floor(safeSeconds / 60);
-  const remainingSeconds = safeSeconds % 60;
-  return `${String(minutes).padStart(2, "0")}:${String(remainingSeconds).padStart(
-    2,
-    "0",
-  )}`;
-}
-
-function toDailySection(section: { heading: string; lines: string[] }): DailySection {
+function toDailySection(section: { heading: string; lines: string[]; }): DailySection {
   const preview = section.lines
     .map((line) => line.trim())
     .filter(Boolean)

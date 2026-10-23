@@ -1,0 +1,27 @@
+name: 问题反馈
+description: 使用虚构数据说明问题和复现步骤。
+title: '[Bug] '
+body:
+  - type: markdown
+    attributes:
+      value: 请不要上传真实笔记库、data.json 或私人日志。安全问题请先阅读 SECURITY.md。
+  - type: textarea
+    id: environment
+    attributes:
+      label: 环境
+      description: Obsidian 版本、插件版本、操作系统，是否使用其他任务插件。
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: 复现步骤与最小示例
+      description: 使用虚构的 Markdown 或设置描述。
+    validations:
+      required: true
+  - type: textarea
+    id: behavior
+    attributes:
+      label: 预期行为与实际结果
+    validations:
+      required: true

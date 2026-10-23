@@ -1,0 +1,36 @@
+name: Draft release
+on:
+  push:
+    tags: ['[0-9]*.[0-9]*.[0-9]*']
+permissions:
+  contents: read
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v7
+        with:
+          node-version-file: .nvmrc
+          package-manager-cache: false
+      - run: npm ci
+      - run: npm run package
+      - name: Create draft with plugin assets
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: >-
+          gh release create "$GITHUB_REF_NAME"
+          dist/dashboard-home/main.js
+          dist/dashboard-home/manifest.json
+          dist/dashboard-home/styles.css
+          dist/daily-*.zip
+          dist/SHA256SUMS.txt
+          dist/INSTALL.md
+          --verify-tag --draft
+          --title "Daily $GITHUB_REF_NAME"
+          --notes-file CHANGELOG.md

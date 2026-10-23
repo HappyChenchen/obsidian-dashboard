@@ -3,3 +3,12 @@ dist/
 main.js
 data.json
 .DS_Store
+.env
+.env.*
+!.env.example
+coverage/
+.obsidian/
+.trash/
+Daily Backups/
+*.log
+*.tsbuildinfo

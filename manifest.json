@@ -1,10 +1,10 @@
 {
   "id": "dashboard-home",
-  "name": "Dashboard Home",
+  "name": "Daily",
   "version": "0.1.0",
   "minAppVersion": "1.8.0",
-  "description": "A Notion-inspired home dashboard for daily notes, tasks, calendar, projects, reading, and focus sessions.",
+  "description": "你的每日笔记与待办首页。",
   "author": "HappyChenchen",
-  "isDesktopOnly": false
+  "isDesktopOnly": false,
+  "authorUrl": "https://github.com/HappyChenchen"
 }
-

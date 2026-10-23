@@ -5,32 +5,47 @@ export type DashboardPanelId =
   | "daily"
   | "todo"
   | "study"
-  | "database"
-  | "projects";
-export type DashboardCategory = "生活" | "工作" | "公考" | "学习" | "其他";
-export type DashboardCategoryFilter = DashboardCategory | "all" | "uncategorized";
+  | "database";
+export type DashboardCategory = string;
+export type DashboardCategoryFilter = `category:${string}` | "all" | "uncategorized";
 export type DashboardPanelSize = "compact" | "normal" | "wide" | "tall" | "large";
 export type StudyTrackerMode = "month" | "year";
 export type DashboardTabId = "home" | "study" | "monthly";
 
 export interface DashboardSettings {
+  dailySetupComplete: boolean;
+  dailyFolderLiteral: boolean;
+  homeTitle: string;
+  recentThoughtCount: number;
   dailyFolder: string;
   dailyDateFormat: string;
-  projectFolder: string;
   articleFolder: string;
   bookFolder: string;
   defaultTaskSection: string;
-  pomodoroMinutes: number;
+  thoughtSection: string;
+  dailyPreviewSections: string[];
+  taskSource: "all" | "daily" | "folders";
+  taskFolders: string[];
+  taskExcludedFolders: string[];
+  completedTaskDisplay: "hide" | "collapsed" | "show";
+  weekStartsOn: 0 | 1;
+  taskCategories: string[];
+  defaultTaskCategory: string;
   openOnStartup: boolean;
   panelOrder: DashboardPanelId[];
   taskOrder: string[];
   panelSizes: Record<DashboardPanelId, DashboardPanelSize>;
   visiblePanels: Record<DashboardPanelId, boolean>;
+  studyEnabled: boolean;
+  studyCourses: StudyCourse[];
   studyCheckins: StudyCheckin[];
   monthlyPlan: Record<string, string>;
   monthlyPlanDone: Record<string, boolean>;
   monthlyPlanCategory: Record<string, DashboardCategory>;
+  monthlyPlanItems: Record<string, MonthlyPlanItem[]>;
 }
+
+export interface MonthlyPlanItem { id: string; text: string; done: boolean; }
 
 export interface StudyCourse {
   id: string;
@@ -45,30 +60,33 @@ export interface StudyCheckin {
   checkedAt: number;
 }
 
-export interface DashboardTask {
+interface TaskContent {
   text: string;
   done: boolean;
   due?: string;
-  file: TFile;
+  dailyDate?: string;
+  invalidDate?: string;
   line: number;
+  sourceContent?: string;
   tags: string[];
   category?: DashboardCategory;
-  source?: "note" | "monthly-plan";
-  monthlyPlanDate?: string;
+}
+
+export type DashboardTask = TaskContent & (
+  | { source?: "note"; file: TFile; monthlyPlanDate?: never; }
+  | { source: "monthly-plan"; monthlyPlanDate: string; monthlyPlanItemId?: string; file?: never; }
+);
+
+export interface CalendarDayTasks {
+  tasks: DashboardTask[];
+  pending: number;
+  completed: number;
 }
 
 export interface DailySection {
   heading: string;
   preview: string;
   lines: string[];
-}
-
-export interface ProjectSummary {
-  title: string;
-  file: TFile;
-  status: string;
-  progress: number;
-  updated: number;
 }
 
 export interface LibraryItem {
@@ -82,7 +100,7 @@ export interface LibraryItem {
 
 export interface RecentThought {
   date: string;
-  previewSections: Array<{ label: string; text: string }>;
+  previewSections: Array<{ label: string; text: string; }>;
   file: TFile;
   updated: number;
 }
@@ -109,10 +127,9 @@ export interface DashboardData {
   todayFile?: TFile;
   dailySections: DailySection[];
   tasks: DashboardTask[];
-  allTasks: DashboardTask[];
   dailyDates: Set<string>;
-  calendarCounts: Map<string, number>;
-  projects: ProjectSummary[];
+  completedTasks: DashboardTask[];
+  calendarTasks: Map<string, CalendarDayTasks>;
   articles: LibraryItem[];
   books: LibraryItem[];
   recentThoughts: RecentThought[];

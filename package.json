@@ -1,12 +1,16 @@
 {
   "name": "obsidian-dashboard",
   "version": "0.1.0",
-  "description": "A personal home dashboard for Obsidian.",
+  "description": "Your daily notes and tasks home in Obsidian.",
   "main": "main.js",
   "scripts": {
     "dev": "node esbuild.config.mjs",
     "build": "tsc -noEmit -skipLibCheck && node esbuild.config.mjs production",
-    "install:local": "npm run build && node scripts/install-local.mjs"
+    "test": "node --test tests/*.test.mjs",
+    "check": "node scripts/check-metadata.mjs && npm test && npm run build",
+    "package": "npm run check && node scripts/package.mjs",
+    "install:local": "npm run build && node scripts/install-local.mjs",
+    "version": "node scripts/sync-version.mjs"
   },
   "keywords": [
     "obsidian",
@@ -23,5 +27,17 @@
     "esbuild": "^0.25.0",
     "obsidian": "^1.8.7",
     "typescript": "^5.8.0"
+  },
+  "private": true,
+  "engines": {
+    "node": ">=22"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/HappyChenchen/obsidian-dashboard.git"
+  },
+  "homepage": "https://github.com/HappyChenchen/obsidian-dashboard#readme",
+  "bugs": {
+    "url": "https://github.com/HappyChenchen/obsidian-dashboard/issues"
   }
 }

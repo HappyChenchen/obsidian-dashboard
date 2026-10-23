@@ -1,18 +1,9 @@
-import type { DashboardPanelId, DashboardPanelSize, DashboardSettings } from "./types";
+import { DEFAULT_TASK_CATEGORIES } from "./categories";
+import type { DashboardPanelId, DashboardPanelSize, DashboardSettings, MonthlyDiaryFilter } from "./types";
 
 export const VIEW_TYPE_DASHBOARD = "dashboard-home-view";
 export const VIEW_TYPE_MONTHLY_DIARY = "dashboard-monthly-diary-view";
 export const VIEW_TYPE_STUDY_TRACKER = "dashboard-study-tracker-view";
-
-export const DAILY_TEMPLATE_SECTIONS = [
-  "今日todo",
-  "今日关联笔记",
-  "想法/思考",
-];
-
-export const DAILY_TEMPLATE_HINTS: Record<string, string> = {
-  今日todo: "<!-- 分类：在每条 Todo 末尾添加 #生活、#工作、#公考、#学习 或 #其他 -->",
-};
 
 export const DEFAULT_PANEL_ORDER: DashboardPanelId[] = [
   "calendar",
@@ -20,7 +11,6 @@ export const DEFAULT_PANEL_ORDER: DashboardPanelId[] = [
   "todo",
   "study",
   "database",
-  "projects",
 ];
 
 export const DEFAULT_PANEL_SIZES: Record<DashboardPanelId, DashboardPanelSize> = {
@@ -29,7 +19,6 @@ export const DEFAULT_PANEL_SIZES: Record<DashboardPanelId, DashboardPanelSize> =
   todo: "tall",
   study: "normal",
   database: "wide",
-  projects: "normal",
 };
 
 export const DEFAULT_VISIBLE_PANELS: Record<DashboardPanelId, boolean> = {
@@ -38,24 +27,44 @@ export const DEFAULT_VISIBLE_PANELS: Record<DashboardPanelId, boolean> = {
   todo: true,
   study: false,
   database: false,
-  projects: false,
 };
 
 export const DEFAULT_SETTINGS: DashboardSettings = {
+  dailySetupComplete: false,
+  dailyFolderLiteral: false,
+  homeTitle: "今天",
+  recentThoughtCount: 3,
   dailyFolder: "Daily/YYYY/MM",
   dailyDateFormat: "YYYY-MM-DD",
-  projectFolder: "Projects",
   articleFolder: "Library/Articles",
   bookFolder: "Library/Books",
   defaultTaskSection: "今日todo",
-  pomodoroMinutes: 25,
+  thoughtSection: "想法/思考",
+  dailyPreviewSections: [],
+  taskSource: "all",
+  taskFolders: [],
+  taskExcludedFolders: [],
+  completedTaskDisplay: "hide",
+  weekStartsOn: 0,
+  taskCategories: DEFAULT_TASK_CATEGORIES,
+  defaultTaskCategory: "",
   openOnStartup: false,
   panelOrder: DEFAULT_PANEL_ORDER,
   taskOrder: [],
   panelSizes: DEFAULT_PANEL_SIZES,
   visiblePanels: DEFAULT_VISIBLE_PANELS,
+  studyEnabled: false,
+  studyCourses: [],
   studyCheckins: [],
   monthlyPlan: {},
   monthlyPlanDone: {},
   monthlyPlanCategory: {},
+  monthlyPlanItems: {},
 };
+
+export const MONTHLY_DIARY_FILTERS: Array<{ id: MonthlyDiaryFilter; label: string; }> = [
+  { id: "all", label: "全部" },
+  { id: "todo", label: "Todo" },
+  { id: "inspiration", label: "灵感" },
+  { id: "notes", label: "笔记" },
+];
