@@ -91,6 +91,7 @@ npm run package
 ```text
 dist/
 ├── daily-0.1.0.zip        # 可直接解压安装
+├── daily-examples-0.1.0.zip # 示例笔记库与笔记模板
 ├── dashboard-home/       # 三个插件文件
 ├── INSTALL.md            # 安装说明
 └── SHA256SUMS.txt         # 文件校验和
@@ -105,7 +106,13 @@ dist/
 
 **月度计划和日记 Todo 如何联动？** 首页与日历统一展示两种事项。日记 Todo 保存在 Markdown，勾选后写回原文；月度计划保存在插件数据，不自动复制到日记。「月度日记」是汇总视图，点击日期打开日记，点击加号向对应日记添加 Todo；其摘要不是独立的任务编辑器。
 
-详细操作见 [使用指南](docs/USAGE.md)，也可以先用 [虚构示例库](examples/README.md) 试用。
+详细操作见 [使用指南](docs/USAGE.md)。
+
+### 示例笔记与模板
+
+**[下载示例库和模板](https://github.com/HappyChenchen/obsidian-dashboard/raw/refs/heads/main/downloads/daily-examples-0.1.0.zip)**，解压后用 Obsidian 打开 `Daily-example-vault`，再按安装指南启用 Daily。示例都是虚构内容，包含两篇日记、文章、读书笔记，以及日记／读书／文章模板。切换到 **2026 年 10 月** 即可查看示例日期。
+
+只需要模板时，可以复制仓库的 [templates](templates/README.md) 到笔记库的 `Templates/`。自定义模板通过核心「日记」或「模板」插件使用；Daily 自己创建日记时仍使用内置格式。完整步骤见 [模板说明](templates/README.md)，示例操作见 [示例库说明](examples/README.md)。
 
 ## 数据从哪里来
 
@@ -133,6 +140,7 @@ Daily 读取当前库中允许扫描的 Markdown 文件，按配置的路径识�
 ├── downloads/             # 仓库内可直接安装的 ZIP 和校验文件
 ├── tests/                 # 模拟 Obsidian API 的回归测试
 ├── examples/vault/        # 虚构示例笔记
+├── templates/             # 日记、读书和文章模板
 ├── docs/                  # 使用、安装、发布和后续计划
 └── .github/               # CI、草稿发布、Issue 与 PR 模板
 ```

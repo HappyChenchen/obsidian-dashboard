@@ -1,4 +1,4 @@
-// Portable ZIP writer for the three small plugin assets (stored, UTF-8 names).
+// Portable ZIP writer for small plugin assets and Markdown examples (stored, UTF-8 names).
 // No shell utilities or package downloads are required on Windows/macOS/Linux.
 export function zipFiles(files) {
   const local = [], directory = [];
